@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Spark / Hive local artifacts
+spark-warehouse/
+.warehouse/
+metastore_db/
+derby.log
+*.log
+
+# Delta Lake
+_delta_log/
+*.checkpoint.parquet
+
+# Unity Catalog local artifacts
+.volumes/
+.dbfs/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment (contains credentials)
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+
+# uv lock file (optional - keep if using uv package manager)
+# uv.lock

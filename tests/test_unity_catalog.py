@@ -58,6 +58,11 @@ def spark():
             "spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false"
         )
     )
+
+    # Windows-specific Spark configuration
+    if platform.system() == "Windows":
+        builder = builder.config("spark.hadoop.io.native.lib.available", "false")
+
     builder = configure_spark_with_delta_pip(builder)
     session = builder.getOrCreate()
     yield session

@@ -54,6 +54,4 @@ htmlcov/
 .DS_Store
 Thumbs.db
 *.bak
-
-# uv lock file (optional - keep if using uv package manager)
-# uv.lock
+uv.lock

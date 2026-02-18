@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/omarbecerrasierra/databricks-local.svg?style=social&label=Star)](https://github.com/omarbecerrasierra/databricks-local)
 
-> **⚠️ IMPORTANT DISCLAIMER**: This is an **unofficial, independent, open-source project** created for local development and testing. It is **NOT affiliated with, endorsed by, or supported by Databricks, Inc.** Databricks® is a registered trademark of Databricks, Inc. This project is provided "as-is" for educational and development purposes only. See [DISCLAIMER.md](DISCLAIMER.md) for complete legal information.
+> **⚠️ DISCLAIMER**: This is an **unofficial, independent, open-source project** for local development and testing. It is **NOT affiliated with, endorsed by, or supported by Databricks, Inc.** Databricks® is a registered trademark of Databricks, Inc. See the [Legal Disclaimer](#%EF%B8%8F-legal-disclaimer) section below.
 
 A local development environment that emulates Unity Catalog and DBUtils APIs compatible with Databricks Runtime 16.4 LTS patterns, allowing you to develop and test Apache Spark notebooks and ETL pipelines locally using open-source technologies (PySpark 3.5.3 + Delta Lake 3.3.2) without requiring a Databricks workspace.
 

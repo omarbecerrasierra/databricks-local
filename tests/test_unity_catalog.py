@@ -37,7 +37,7 @@ def spark():
     wh = tempfile.mkdtemp(prefix="uc_test_wh_")
 
     # Normalize path for Windows
-    wh_config = wh.replace("\\", "/") if platform.system() == "Windows" else wh
+    wh_normalized = wh.replace("\\", "/") if platform.system() == "Windows" else wh
 
     # Solo spark_catalog como DeltaCatalog.
     # Catálogos adicionales (main, hive_metastore) son gestionados por el shim.
@@ -50,7 +50,7 @@ def spark():
             "spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
         )
-        .config("spark.sql.warehouse.dir", f"{wh_config}/main")
+        .config("spark.sql.warehouse.dir", f"{wh_normalized}/main")
         .config("spark.sql.shuffle.partitions", "1")
         .config("spark.default.parallelism", "1")
         .config("spark.ui.enabled", "false")

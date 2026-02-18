@@ -17,8 +17,13 @@ from main import (
 
 @pytest.fixture(scope="session")
 def spark(tmp_path_factory):
+    import platform
+
     # Warehouse local único para el conjunto de tests
     wh = str(tmp_path_factory.mktemp("warehouse"))
+    # Normalize path for cross-platform compatibility
+    wh_normalized = wh.replace("\\", "/") if platform.system() == "Windows" else wh
+
     # Solo spark_catalog como DeltaCatalog — ver SPARK-47789.
     builder = (
         SparkSession.builder.master("local[1]")
@@ -28,7 +33,7 @@ def spark(tmp_path_factory):
             "spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
         )
-        .config("spark.sql.warehouse.dir", f"{wh}/main")
+        .config("spark.sql.warehouse.dir", f"{wh_normalized}/main")
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.default.parallelism", "2")
         .config("spark.ui.enabled", "false")
@@ -36,12 +41,6 @@ def spark(tmp_path_factory):
             "spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false"
         )
     )
-
-    # Windows-specific configuration to suppress Hadoop native library warnings
-    import platform
-
-    if platform.system() == "Windows":
-        builder = builder.config("spark.sql.warehouse.dir", wh.replace("\\", "/"))
 
     builder = configure_spark_with_delta_pip(builder)
     session = builder.getOrCreate()

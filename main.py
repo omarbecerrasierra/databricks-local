@@ -1,7 +1,7 @@
 """
-Medallion ETL demo — runs inside the Docker Databricks emulator.
+Medallion ETL demo — runs 100% locally with PySpark + Delta Lake.
 
-    docker compose exec spark python main.py
+    python main.py
 """
 
 import os
@@ -44,12 +44,12 @@ PRODUCTS = [
 ]
 
 
-def paths(bucket, prefix):
-    """Return bronze / silver / gold paths."""
+def paths(base_dir: str):
+    """Return bronze / silver / gold paths (local filesystem)."""
     return (
-        f"{prefix}://{bucket}/bronze/products",
-        f"{prefix}://{bucket}/silver/products",
-        f"{prefix}://{bucket}/gold/category_summary",
+        os.path.join(base_dir, "bronze", "products"),
+        os.path.join(base_dir, "silver", "products"),
+        os.path.join(base_dir, "gold", "category_summary"),
     )
 
 
@@ -135,14 +135,11 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 
 def _delete_path_if_exists(spark, path: str) -> None:
-    """Borra una ruta (S3A/local) si existe para iniciar una demo limpia."""
-    jvm = spark._jvm
-    jsc = spark._jsc
-    hadoop_conf = jsc.hadoopConfiguration()
-    hpath = jvm.org.apache.hadoop.fs.Path(path)
-    fs = hpath.getFileSystem(hadoop_conf)
-    if fs.exists(hpath):
-        fs.delete(hpath, True)
+    """Borra una ruta local si existe para iniciar una demo limpia."""
+    import shutil
+
+    if os.path.exists(path):
+        shutil.rmtree(path, ignore_errors=True)
         print(f"  Reset path ✓ {path}")
 
 
@@ -150,9 +147,9 @@ def _delete_path_if_exists(spark, path: str) -> None:
 def run():
     spark = get_spark_session("Medallion_ETL")
 
-    bucket = os.getenv("BUCKET_NAME", "demo-bucket")
-    prefix = os.getenv("STORAGE_PREFIX", "s3a")
-    bronze, silver, gold = paths(bucket, prefix)
+    base_dir = os.getenv("WAREHOUSE_DIR", os.path.join(os.getcwd(), ".warehouse", "demo"))
+    os.makedirs(base_dir, exist_ok=True)
+    bronze, silver, gold = paths(base_dir)
 
     print(f"  paths → bronze={bronze}")
     print(f"  paths → silver={silver}")
@@ -163,9 +160,6 @@ def run():
             _delete_path_if_exists(spark, bronze)
             _delete_path_if_exists(spark, silver)
             _delete_path_if_exists(spark, gold)
-            spark.sql("DROP TABLE IF EXISTS sales.products_silver")
-            spark.sql("DROP TABLE IF EXISTS sales.category_summary_gold")
-            print("  Demo data reset complete ✓")
 
         ingest_bronze(spark, bronze)
         print("  Bronze OK ✓")
@@ -182,8 +176,7 @@ def run():
         merge_into_silver(spark, silver)
         print("  Merge OK ✓")
 
-        # Evita bloqueos largos en entornos locales con S3/MinIO;
-        # habilitar explícitamente si se requiere mantenimiento.
+        # OPTIMIZE + VACUUM — habilitar explícitamente si se requiere.
         if _env_flag("RUN_MAINTENANCE", default=False):
             optimize_vacuum(spark, silver)
             print("  Optimize+Vacuum OK ✓")

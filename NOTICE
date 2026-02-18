@@ -38,18 +38,6 @@ This project is built entirely on open-source software:
    License: Apache License 2.0
    https://pypi.org/project/pyspark/
 
-4. PostgreSQL
-   License: PostgreSQL License (MIT-like)
-   https://www.postgresql.org/
-
-5. MinIO
-   License: GNU Affero General Public License v3.0
-   https://min.io/
-
-6. Hadoop AWS SDK
-   License: Apache License 2.0
-   https://hadoop.apache.org/
-
 Intended Use
 ------------
 This software is intended exclusively for:

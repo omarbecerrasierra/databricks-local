@@ -8,11 +8,11 @@ Three-level namespace (catalog.schema.table):
 
 Volumes (/Volumes/catalog/schema/volume/path):
   - Se resuelven a <VOLUMES_ROOT>/catalog/schema/volume/path
-  - VOLUMES_ROOT = $PWD/.volumes (local) o puede apuntar a s3a://...
+  - VOLUMES_ROOT = $PWD/.volumes (default)
 
 DBFS (dbfs:/path):
   - Se resuelven a <DBFS_ROOT>/path
-  - DBFS_ROOT = $PWD/.dbfs (local) o puede apuntar a s3a://...
+  - DBFS_ROOT = $PWD/.dbfs (default)
 
 SQL interceptado (no soportado nativamente por Spark):
   CREATE / DROP CATALOG  ·  DESCRIBE CATALOG
@@ -105,8 +105,8 @@ def _warehouse_base() -> str:
 
 
 def _join(root: str, rel: str) -> str:
-    """Une root y rel de forma segura para rutas locales y s3a://."""
-    return root.rstrip("/") + "/" + rel.lstrip("/")
+    """Une root y rel de forma segura."""
+    return os.path.join(root, rel.lstrip("/"))
 
 
 def is_volume_path(path: str) -> bool:
@@ -1164,11 +1164,9 @@ class UnityCatalogShim:
 
         # MANAGED LOCATION: ruta personalizada o default warehouse
         wh = location or os.path.join(_warehouse_base(), name)
-        # Solo crear directorio local; las rutas S3/remota las gestiona Spark
-        if "://" not in wh:
-            pathlib.Path(wh).mkdir(parents=True, exist_ok=True)
-            for sch in ("default", "bronze", "silver", "gold"):
-                pathlib.Path(os.path.join(wh, sch)).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(wh).mkdir(parents=True, exist_ok=True)
+        for sch in ("default", "bronze", "silver", "gold"):
+            pathlib.Path(os.path.join(wh, sch)).mkdir(parents=True, exist_ok=True)
         self._catalogs[name] = wh
 
         # Registrar en la sesión Spark activa solo si el catálogo no es uno de
@@ -1417,9 +1415,7 @@ class UnityCatalogShim:
             _volumes_root(),
             f"{catalog_name}/{schema_name}/{volume_name}",
         )
-        # Solo crear directorio para rutas locales; S3/remota las gestiona Spark
-        if "://" not in local_path:
-            pathlib.Path(local_path).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(local_path).mkdir(parents=True, exist_ok=True)
         self._volumes[key] = local_path
         print(f"[Unity] Volume '{key}' ({volume_type}) → {local_path}")
         return None
@@ -2005,7 +2001,6 @@ API Python:
 Rutas especiales (via dbutils.fs):
   /Volumes/catalog/schema/volume/path  →  <VOLUMES_ROOT>/…
   dbfs:/path                           →  <DBFS_ROOT>/…
-  s3a://bucket/…                       →  Hadoop FileSystem (MinIO/S3)
 """)
 
 
@@ -2122,34 +2117,26 @@ class _InformationSchema:
 # ── Inicialización de catálogos por defecto ───────────────────────────────────
 
 
-def init_unity_catalog(spark, warehouse_s3_base: Optional[str] = None) -> None:
+def init_unity_catalog(spark) -> None:
     """
     Inicializa la estructura de Unity Catalog local.
     Llamada automáticamente por ``get_spark_session()``.
 
     Registra ``main`` y ``hive_metastore`` en el registro global
-    y crea los directorios de warehouse y volumes.
+    y crea los directorios de warehouse, volumes y DBFS.
     """
     global _CATALOG_REGISTRY, _CURRENT_CATALOG, _CURRENT_SCHEMA
 
-    base = warehouse_s3_base or _warehouse_base()
+    base = _warehouse_base()
 
     for cat in ("main", "hive_metastore"):
-        if warehouse_s3_base:
-            cat_path = _join(warehouse_s3_base, cat)
-        else:
-            cat_path = os.path.join(base, cat)
-            pathlib.Path(cat_path).mkdir(parents=True, exist_ok=True)
+        cat_path = os.path.join(base, cat)
+        pathlib.Path(cat_path).mkdir(parents=True, exist_ok=True)
         _CATALOG_REGISTRY[cat] = cat_path
 
     # Directorios locales para volumes y DBFS
-    # (omitir si apuntan a rutas remotas como s3a://)
-    vr = _volumes_root()
-    if "://" not in vr:
-        pathlib.Path(vr).mkdir(parents=True, exist_ok=True)
-    dr = _dbfs_root()
-    if "://" not in dr:
-        pathlib.Path(dr).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(_volumes_root()).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(_dbfs_root()).mkdir(parents=True, exist_ok=True)
 
     _CURRENT_CATALOG = "main"
 

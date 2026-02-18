@@ -47,16 +47,14 @@ A local development environment that provides Unity Catalog-style and DBUtils-co
 - OPTIMIZE and VACUUM (local mode)
 - Change Data Feed (CDF) support
 
-### Development Modes
-- **Local Mode**: Pure Python/PySpark development without Docker
-- **Docker Mode**: Full environment with MinIO S3 + PostgreSQL Hive Metastore
+### Development
+- **100% Local**: Pure Python/PySpark — no Docker, no cloud, no external services
 - **Notebook Support**: Jupyter integration with `display()`, `spark`, `dbutils`, `uc`
 
 ## 📋 Requirements
 
 - Python 3.11 or higher
-- Java 11 or higher (for PySpark)
-- Docker & Docker Compose (optional, for full environment)
+- Java 17 or higher (for PySpark)
 
 ## 🚀 Quick Start
 
@@ -116,44 +114,22 @@ spark.read.format("delta").option("versionAsOf", 0).load("/tmp/delta_table").sho
 
 See [notebooks/analysis.ipynb](notebooks/analysis.ipynb) for a complete example.
 
-## 🐳 Docker Mode (Full Environment)
-
-For S3-compatible storage (MinIO) and PostgreSQL Hive Metastore:
-
-```bash
-# Start services
-docker compose up -d --build
-
-# Run ETL pipeline in container
-docker compose exec spark python main.py
-
-# Stop services
-docker compose down
-```
-
-The Docker environment includes:
-- **MinIO**: S3-compatible object storage at `http://localhost:9000`
-- **PostgreSQL**: Hive Metastore backend
-- **Spark**: Configured with Delta Lake, Hive support, and AWS SDK
-
-## 📁 Project Structure
+##  Project Structure
 
 ```
 databricks-local/
 ├── databricks_shim/          # Core Unity Catalog + DBUtils implementation
-│   ├── __init__.py           # Main exports
-│   ├── connect.py            # SparkSession factory
-│   ├── unity_catalog.py      # Unity Catalog implementation (~1900 lines)
-│   └── utils.py              # DBUtils implementation (~600 lines)
+│   ├── __init__.py           # Main exports + inject_notebook_context()
+│   ├── connect.py            # SparkSession factory (local)
+│   ├── unity_catalog.py      # Unity Catalog implementation (~2100 lines)
+│   └── utils.py              # DBUtils implementation (~570 lines)
 ├── notebooks/
-│   └── analysis.ipynb        # Complete demo notebook (28 cells)
+│   └── analysis.ipynb        # Complete demo notebook (22 sections)
 ├── tests/
 │   ├── conftest.py           # Pytest fixtures
 │   ├── test_etl.py           # ETL pipeline tests
 │   └── test_unity_catalog.py # UC tests (256 tests)
-├── main.py                   # Medallion ETL demo (Docker mode)
-├── docker-compose.yml        # Docker services
-├── Dockerfile                # Spark + Delta environment
+├── main.py                   # Medallion ETL demo
 ├── pyproject.toml            # Project metadata & dependencies
 └── README.md                 # This file
 ```
@@ -289,26 +265,22 @@ SHOW GROUPS;
 
 ## 🔧 Configuration
 
-### Environment Variables
+### Environment Variables (Optional)
 
-Create a `.env` file for Docker mode:
+All variables are optional. Create a `.env` file to override defaults:
 
 ```env
-# MinIO S3
-AWS_ACCESS_KEY_ID=minioadmin
-AWS_SECRET_ACCESS_KEY=minioadmin
-AWS_ENDPOINT_URL=http://minio:9000
-AWS_REGION=us-east-1
+# Override local storage paths (defaults: .warehouse/, .volumes/, .dbfs/)
+LOCAL_WAREHOUSE=.warehouse
+VOLUMES_ROOT=.volumes
+DBFS_ROOT=.dbfs
 
-# PostgreSQL Hive Metastore
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-POSTGRES_DB=metastore_db
-POSTGRES_USER=hive
-POSTGRES_PASSWORD=hive_password
+# Databricks workspace simulation
+DATABRICKS_CATALOG=main
+DATABRICKS_CLUSTER_NAME=databricks-local
 ```
 
-For local mode, these are automatically disabled in notebooks.
+No external services required — everything runs locally on your filesystem.
 
 ## 🛠️ Development
 
@@ -372,7 +344,6 @@ For official enterprise support and production-ready solutions, visit [Databrick
 
 - [ ] MLflow integration for experiment tracking
 - [ ] Web UI for catalog browsing
-- [ ] Additional storage backends (Azure Blob, GCS)
 - [ ] SQL Analytics endpoint patterns
 - [ ] Workflows/Jobs scheduling patterns
 - [ ] Extended Delta Lake features (CDF, Z-ordering)
@@ -418,8 +389,6 @@ This project is built **entirely** on open-source technologies. No proprietary s
 - Apache Spark™ 3.5.3 (Apache License 2.0)
 - Delta Lake 3.3.2 (Apache License 2.0)
 - Python and PySpark
-- PostgreSQL (PostgreSQL License)
-- MinIO (AGPL v3)
 
 For the full list of third-party components and their licenses, see the [NOTICE](NOTICE) file.
 

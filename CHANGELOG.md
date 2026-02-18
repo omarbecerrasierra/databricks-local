@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-18
+
+### Removed
+- **Docker infrastructure**: Removed `Dockerfile` and `docker-compose.yml`
+- **MinIO (S3)**: Removed all S3A/MinIO configuration and Hadoop FS remote code paths
+- **PostgreSQL**: Removed Hive Metastore PostgreSQL backend
+- **boto3 dependency**: No longer needed without S3 support
+- **mlflow dependency**: Removed (was unused)
+- **APP_ENV branching**: Removed local/docker/cloud mode switching
+- **Hadoop FS helpers**: Removed `_is_remote()`, `_hadoop_fs()` from `utils.py`
+
+### Changed
+- Project now runs **100% locally** — no Docker, no external services
+- `connect.py`: Simplified to ~90 lines (was ~196). Pure local Spark + Delta Lake
+- `utils.py`: All FSMock methods now use only local filesystem operations
+- `unity_catalog.py`: Removed S3 path conditionals from `init_unity_catalog`, `create_catalog`, `create_volume`
+- `main.py`: Uses local filesystem paths instead of `s3a://` URLs
+- `.env.example`: Simplified to local-only configuration
+- Updated README, NOTICE, CONTRIBUTING to reflect local-only architecture
+
 ## [0.4.0] - 2026-02-18
 
 ### Added

@@ -112,13 +112,12 @@ class WidgetsMock:
 
 
 # ===========================================================================
-# dbutils.fs  – soporte para rutas S3A, /Volumes/, dbfs:/ y locales
+# dbutils.fs  – soporte para rutas /Volumes/, dbfs:/ y locales
 # ===========================================================================
 class FSMock:
     """
     Emula dbutils.fs con soporte para:
 
-    * ``s3a://`` / ``gs://`` / ``abfss://``  →  Hadoop FileSystem
     * ``/Volumes/catalog/schema/volume/…``   →  directorio local (Unity Catalog)
     * ``dbfs:/…``                             →  directorio local (.dbfs/)
     * Rutas locales                           →  sistema de archivos del SO
@@ -144,22 +143,6 @@ class FSMock:
             return resolve_dbfs_path(path)
         return path
 
-    def _is_remote(self, path: str) -> bool:
-        return "://" in path
-
-    # ── Hadoop FS helpers ─────────────────────────────────────────────────────
-
-    def _hadoop_fs(self, path: str):
-        from py4j.java_gateway import java_import
-
-        jvm = self._spark._jvm
-        java_import(jvm, "org.apache.hadoop.fs.Path")
-        java_import(jvm, "org.apache.hadoop.fs.FileSystem")
-        hpath = jvm.org.apache.hadoop.fs.Path(path)
-        conf = self._spark._jsc.hadoopConfiguration()
-        fs = jvm.org.apache.hadoop.fs.FileSystem.get(hpath.toUri(), conf)
-        return fs, hpath
-
     # ── API pública ───────────────────────────────────────────────────────────
 
     def ls(self, path: str):
@@ -171,25 +154,6 @@ class FSMock:
                 FileInfo(path='/Volumes/main/bronze/raw/data.csv', ...)
         """
         resolved = self._resolve(path)
-
-        if self._spark and self._is_remote(resolved):
-            fs, hpath = self._hadoop_fs(resolved)
-            statuses = fs.listStatus(hpath)
-            results = []
-            for st in statuses:
-                p = st.getPath().toString()
-                name = st.getPath().getName()
-                if st.isDirectory():
-                    name += "/"
-                results.append(
-                    FileInfo(
-                        path=p,
-                        name=name,
-                        size=st.getLen(),
-                        modificationTime=st.getModificationTime(),
-                    )
-                )
-            return results
 
         import pathlib as _pl
         from databricks_shim.unity_catalog import (
@@ -208,12 +172,10 @@ class FSMock:
             is_dir = child.is_dir()
             # Reconstruir la ruta en formato UC si el path original era UC
             if is_volume_path(path):
-                # /Volumes/cat/sch/vol/... → preservar prefijo /Volumes/
                 vr = _volumes_root().rstrip("/")
                 rel = str(child).replace(vr, "", 1).lstrip("/")
                 child_path = "/Volumes/" + rel
             elif is_dbfs_path(path):
-                # dbfs:/... → preservar prefijo dbfs:/
                 dr = _dbfs_root().rstrip("/")
                 rel = str(child).replace(dr, "", 1).lstrip("/")
                 child_path = "dbfs:/" + rel
@@ -233,36 +195,12 @@ class FSMock:
 
     def head(self, path: str, max_bytes: int = 65536) -> str:
         path = self._resolve(path)
-        if self._spark and self._is_remote(path):
-            fs, hpath = self._hadoop_fs(path)
-            stream = fs.open(hpath)
-            buf = bytearray(max_bytes)
-            from py4j.java_gateway import java_import
-
-            java_import(self._spark._jvm, "java.io.BufferedInputStream")
-            bis = self._spark._jvm.java.io.BufferedInputStream(stream)
-            n_read = bis.read(buf, 0, max_bytes)
-            bis.close()
-            return bytes(buf[: max(n_read, 0)]).decode("utf-8", errors="replace")
         with open(path, "rb") as f:
             return f.read(max_bytes).decode("utf-8", errors="replace")
 
     def cp(self, src: str, dst: str, recurse: bool = False) -> bool:
         src = self._resolve(src)
         dst = self._resolve(dst)
-        if self._spark and (self._is_remote(src) or self._is_remote(dst)):
-            fs_src, hp_src = self._hadoop_fs(src)
-            _, hp_dst = self._hadoop_fs(dst)
-            from py4j.java_gateway import java_import
-
-            jvm = self._spark._jvm
-            java_import(jvm, "org.apache.hadoop.fs.FileUtil")
-            conf = self._spark._jsc.hadoopConfiguration()
-            fs_dst = jvm.org.apache.hadoop.fs.FileSystem.get(hp_dst.toUri(), conf)
-            jvm.org.apache.hadoop.fs.FileUtil.copy(
-                fs_src, hp_src, fs_dst, hp_dst, False, conf
-            )
-            return True
         if os.path.isdir(src) and recurse:
             shutil.copytree(src, dst, dirs_exist_ok=True)
         else:
@@ -277,10 +215,6 @@ class FSMock:
 
     def rm(self, path: str, recurse: bool = False) -> bool:
         path = self._resolve(path)
-        if self._spark and self._is_remote(path):
-            fs, hpath = self._hadoop_fs(path)
-            fs.delete(hpath, recurse)
-            return True
         if os.path.isdir(path):
             if recurse:
                 shutil.rmtree(path)
@@ -292,24 +226,11 @@ class FSMock:
 
     def mkdirs(self, path: str) -> bool:
         path = self._resolve(path)
-        if self._spark and self._is_remote(path):
-            fs, hpath = self._hadoop_fs(path)
-            fs.mkdirs(hpath)
-            return True
         os.makedirs(path, exist_ok=True)
         return True
 
     def put(self, path: str, contents: str, overwrite: bool = False) -> bool:
         path = self._resolve(path)
-        if self._spark and self._is_remote(path):
-            fs, hpath = self._hadoop_fs(path)
-            if not overwrite and fs.exists(hpath):
-                raise FileExistsError(f"Path already exists: {path}")
-            stream = fs.create(hpath, overwrite)
-            data = contents.encode("utf-8")
-            stream.write(bytearray(data))
-            stream.close()
-            return True
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         mode = "w" if overwrite else "x"
         with open(path, mode, encoding="utf-8") as f:
@@ -354,7 +275,7 @@ class FSMock:
         print(
             "fs: ls, head, cp, mv, rm, mkdirs, put\n"
             "    mount, updateMount, mounts, unmount, refreshMounts\n"
-            "Rutas soportadas: s3a://, /Volumes/, dbfs:/, rutas locales"
+            "Rutas soportadas: /Volumes/, dbfs:/, rutas locales"
         )
 
 

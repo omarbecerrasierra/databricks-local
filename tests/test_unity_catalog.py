@@ -32,8 +32,12 @@ def spark():
     """SparkSession mínima con Delta Lake + catálogo main."""
     from pyspark.sql import SparkSession
     from delta import configure_spark_with_delta_pip
+    import platform
 
     wh = tempfile.mkdtemp(prefix="uc_test_wh_")
+    
+    # Normalize path for Windows
+    wh_config = wh.replace("\\", "/") if platform.system() == "Windows" else wh
 
     # Solo spark_catalog como DeltaCatalog.
     # Catálogos adicionales (main, hive_metastore) son gestionados por el shim.
@@ -46,7 +50,7 @@ def spark():
             "spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
         )
-        .config("spark.sql.warehouse.dir", f"{wh}/main")
+        .config("spark.sql.warehouse.dir", f"{wh_config}/main")
         .config("spark.sql.shuffle.partitions", "1")
         .config("spark.default.parallelism", "1")
         .config("spark.ui.enabled", "false")

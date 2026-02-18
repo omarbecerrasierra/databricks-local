@@ -56,11 +56,11 @@ def process_silver(spark, bronze, silver):
         .withColumn("ingestion_time", current_timestamp()) \
         .withColumn("name_upper", upper(col("name")))
     spark.sql("CREATE DATABASE IF NOT EXISTS sales")
-    spark.sql("DROP TABLE IF EXISTS sales.products_silver")
+    # Write to path first, then create table pointing to it
     df.write.format("delta").mode("overwrite") \
-        .option("path", silver) \
         .option("overwriteSchema", "true") \
-        .saveAsTable("sales.products_silver")
+        .save(silver)
+    spark.sql(f"CREATE TABLE IF NOT EXISTS sales.products_silver USING DELTA LOCATION '{silver}'")
 
 
 def aggregate_gold(spark, silver, gold):
@@ -70,9 +70,9 @@ def aggregate_gold(spark, silver, gold):
         .agg(avg("price").alias("avg_price"),
              count("id").alias("product_count")) \
         .withColumn("avg_price", spark_round(col("avg_price"), 2))
-    spark.sql("DROP TABLE IF EXISTS sales.category_summary_gold")
-    df.write.format("delta").mode("overwrite") \
-        .option("path", gold).saveAsTable("sales.category_summary_gold")
+    # Write to path first, then create table pointing to it
+    df.write.format("delta").mode("overwrite").save(gold)
+    spark.sql(f"CREATE TABLE IF NOT EXISTS sales.category_summary_gold USING DELTA LOCATION '{gold}'")
 
 
 def simulate_append(spark, bronze):

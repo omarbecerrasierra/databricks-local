@@ -92,7 +92,17 @@ _SCHEMA_REGISTRY: Dict[str, set] = {}  # catalog_name → {schema_names}
 
 # ── Helpers de rutas ─────────────────────────────────────────────────────────
 
-_REMOTE_SCHEMES = ("s3://", "s3a://", "s3n://", "gs://", "abfss://", "abfs://", "wasbs://", "wasb://", "hdfs://")
+_REMOTE_SCHEMES = (
+    "s3://",
+    "s3a://",
+    "s3n://",
+    "gs://",
+    "abfss://",
+    "abfs://",
+    "wasbs://",
+    "wasb://",
+    "hdfs://",
+)
 
 
 def _is_remote_path(path: str) -> bool:
@@ -1352,7 +1362,10 @@ class UnityCatalogShim:
         # Fusionar con el registro en memoria
         mem_schemas = _SCHEMA_REGISTRY.get(cat, set())
         all_schemas = spark_schemas | mem_schemas
-        return [SchemaInfo(catalog_name=cat, name=n, comment="") for n in sorted(all_schemas)]
+        return [
+            SchemaInfo(catalog_name=cat, name=n, comment="")
+            for n in sorted(all_schemas)
+        ]
 
     def describe_schema(self, catalog_name: str, schema_name: str):
         """Describe un schema, devuelve DataFrame con la información."""

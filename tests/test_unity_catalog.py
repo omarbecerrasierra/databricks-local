@@ -41,6 +41,7 @@ def spark():
     # En Windows, usar URI file:/// para evitar problemas con setPermission
     # de Hadoop (chmod no existe en Windows).
     import pathlib as _pathlib
+
     wh_uri = _pathlib.Path(os.path.join(wh, "main")).as_uri()
 
     # Solo spark_catalog como DeltaCatalog.

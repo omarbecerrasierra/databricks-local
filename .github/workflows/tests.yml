@@ -35,6 +35,18 @@ jobs:
         java -version
         echo "JAVA_HOME=$JAVA_HOME"
 
+    - name: Set up Hadoop winutils (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $hadoopDir = "$env:RUNNER_TEMP\hadoop"
+        $binDir = "$hadoopDir\bin"
+        New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/cdarlint/winutils/master/hadoop-3.3.6/bin/winutils.exe" -OutFile "$binDir\winutils.exe"
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/cdarlint/winutils/master/hadoop-3.3.6/bin/hadoop.dll" -OutFile "$binDir\hadoop.dll"
+        echo "HADOOP_HOME=$hadoopDir" >> $env:GITHUB_ENV
+        echo "$binDir" >> $env:GITHUB_PATH
+
     - name: Cache pip packages
       uses: actions/cache@v4
       with:

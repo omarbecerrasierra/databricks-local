@@ -3,13 +3,13 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PySpark 3.5.3](https://img.shields.io/badge/pyspark-3.5.3-orange.svg)](https://spark.apache.org/)
 [![Delta Lake 3.3.2](https://img.shields.io/badge/delta-3.3.2-green.svg)](https://delta.io/)
-[![Tests](https://img.shields.io/badge/tests-253%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-256%20passed-brightgreen.svg)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/omarbecerrasierra/databricks-local.svg?style=social&label=Star)](https://github.com/omarbecerrasierra/databricks-local)
 
-> **⚠️ DISCLAIMER**: This is an **unofficial, independent, open-source project** for local development and testing. It is **NOT affiliated with, endorsed by, or supported by Databricks, Inc.** Databricks® is a registered trademark of Databricks, Inc. See the [Legal Disclaimer](#%EF%B8%8F-legal-disclaimer) section below.
+> **⚠️ DISCLAIMER**: This is an **unofficial, independent, open-source project** for local development and testing. It is **NOT affiliated with, endorsed by, or supported by Databricks, Inc.** This project does **NOT** contain any proprietary Databricks code or images. Databricks® and Unity Catalog™ are trademarks of Databricks, Inc., used here only under nominative fair use for identification and interoperability. See the [Legal Disclaimer](#%EF%B8%8F-legal-disclaimer) and [NOTICE](NOTICE) file.
 
-A local development environment that emulates Unity Catalog and DBUtils APIs compatible with Databricks Runtime 16.4 LTS patterns, allowing you to develop and test Apache Spark notebooks and ETL pipelines locally using open-source technologies (PySpark 3.5.3 + Delta Lake 3.3.2) without requiring a Databricks workspace.
+A local development environment that provides Unity Catalog-style and DBUtils-compatible APIs, allowing you to develop and test Apache Spark notebooks and ETL pipelines locally using **exclusively open-source technologies** (PySpark 3.5.3 + Delta Lake 3.3.2) without requiring any cloud workspace.
 
 ## 🎯 Features
 
@@ -50,7 +50,7 @@ A local development environment that emulates Unity Catalog and DBUtils APIs com
 ### Development Modes
 - **Local Mode**: Pure Python/PySpark development without Docker
 - **Docker Mode**: Full environment with MinIO S3 + PostgreSQL Hive Metastore
-- **Notebook Support**: Jupyter integration with Unity Catalog-style `display()`, `spark`, `dbutils`, `uc`
+- **Notebook Support**: Jupyter integration with `display()`, `spark`, `dbutils`, `uc`
 
 ## 📋 Requirements
 
@@ -83,7 +83,7 @@ pytest tests/ -v
 
 Output:
 ```
-======================= 253 passed, 3 xfailed in 43.76s ========================
+======================= 256 passed in 57.26s ========================
 ```
 
 ### Use in Notebooks
@@ -150,7 +150,7 @@ databricks-local/
 ├── tests/
 │   ├── conftest.py           # Pytest fixtures
 │   ├── test_etl.py           # ETL pipeline tests
-│   └── test_unity_catalog.py # UC tests (253 tests)
+│   └── test_unity_catalog.py # UC tests (256 tests)
 ├── main.py                   # Medallion ETL demo (Docker mode)
 ├── docker-compose.yml        # Docker services
 ├── Dockerfile                # Spark + Delta environment
@@ -175,7 +175,7 @@ pytest tests/ --cov=databricks_shim --cov-report=html
 
 ### Test Coverage
 
-- **Unity Catalog**: 253 tests covering all SQL commands and Python APIs
+- **Unity Catalog**: 256 tests covering all SQL commands and Python APIs
   - Catalogs, schemas, tables, volumes
   - Grants, tags, functions, groups
   - UNDROP, lineage, information_schema
@@ -352,10 +352,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Inspired by patterns from Databricks Runtime 16.4 LTS (reference: [docs.databricks.com](https://docs.databricks.com/release-notes/runtime/16.4.html))
 - Built with [Apache Spark™ 3.5.3](https://spark.apache.org/) (Apache License 2.0)
-- Uses [Delta Lake 3.3.2](https://delta.io/) (Apache License 2.0)  
-- Unity Catalog concepts based on public documentation (for learning purposes only)
+- Uses [Delta Lake 3.3.2](https://delta.io/) (Apache License 2.0)
+- API patterns inspired by publicly available documentation (for interoperability and learning purposes only)
+- **No proprietary code** — built entirely on open-source software
 - **Not affiliated with or endorsed by Databricks, Inc.**
 
 ## 📞 Community Support
@@ -381,34 +381,46 @@ For official enterprise support and production-ready solutions, visit [Databrick
 
 ## ⚖️ Legal Disclaimer
 
-### Trademarks and Affiliations
+### Trademarks and Nominative Fair Use
 
 - **Databricks®** is a registered trademark of Databricks, Inc.
-- **This project is NOT affiliated with, endorsed by, or supported by Databricks, Inc.**
-- This is an independent, open-source project created for educational and local development purposes
-- All trademarks, service marks, and company names are the property of their respective owners
+- **Unity Catalog™** is a trademark of Databricks, Inc.
+- **Delta Lake™** is a trademark of The Linux Foundation.
+- **Apache Spark™** is a trademark of The Apache Software Foundation.
+- All other trademarks, service marks, and company names are the property of their respective owners.
+
+Use of these names in this project is solely for **identification and interoperability purposes** under nominative fair use. This project does not imply any affiliation with, endorsement by, or sponsorship from the trademark holders.
+
+### No Affiliation
+
+- **This project is NOT affiliated with, endorsed by, sponsored by, or supported by Databricks, Inc.**
+- This is an independent, open-source project created for educational and local development purposes.
+- This project does **NOT** contain, redistribute, or derive from any proprietary Databricks code, binaries, images, or services.
+- The authors have no relationship with Databricks, Inc.
 
 ### No Official Support
 
-- This software is provided "AS IS" without warranty of any kind
-- The authors are not responsible for any issues arising from the use of this software
-- This project does not grant any licenses to Databricks products or services
-- For official Databricks products and enterprise support, visit [databricks.com](https://databricks.com/)
+- This software is provided "AS IS" without warranty of any kind.
+- The authors are not responsible for any issues arising from the use of this software.
+- This project does not grant any licenses to Databricks products or services.
+- For official Databricks products and enterprise support, visit [databricks.com](https://databricks.com/).
 
 ### Intended Use
 
-- **Local development and testing only** - not for production use
-- Educational purposes and learning Unity Catalog concepts
-- Prototyping before deploying to actual Databricks workspaces
-- Unit testing ETL pipelines without cloud infrastructure
+- **Local development and testing only** — not for production use.
+- Educational purposes and learning data engineering patterns with open-source tools.
+- Prototyping PySpark + Delta Lake pipelines before deploying to any cloud environment.
+- Unit testing ETL pipelines without cloud infrastructure.
 
 ### Open Source Components
 
-This project is built entirely on open-source technologies:
-- Apache Spark™ (Apache License 2.0)
-- Delta Lake (Apache License 2.0)
+This project is built **entirely** on open-source technologies. No proprietary software is included or required:
+- Apache Spark™ 3.5.3 (Apache License 2.0)
+- Delta Lake 3.3.2 (Apache License 2.0)
 - Python and PySpark
-- PostgreSQL (for Hive Metastore)
-- MinIO (for S3-compatible storage)
+- PostgreSQL (PostgreSQL License)
+- MinIO (AGPL v3)
+
+For the full list of third-party components and their licenses, see the [NOTICE](NOTICE) file.
 
 **For production workloads and enterprise features, please use official [Databricks](https://databricks.com/) services.**

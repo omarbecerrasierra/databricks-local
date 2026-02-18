@@ -1,6 +1,10 @@
 """
 Databricks Local — shim público.
 
+DISCLAIMER: This is an unofficial, independent open-source project.
+NOT affiliated with, endorsed by, or supported by Databricks, Inc.
+See the NOTICE and LICENSE files for details.
+
 En un notebook, una sola llamada inyecta el contexto completo::
 
     from databricks_shim import inject_notebook_context

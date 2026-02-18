@@ -14,11 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
         exclude:
-          # Excluir macOS + Python 3.12 para reducir tiempo de CI
           - os: macos-latest
             python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.13"
 
     steps:
     - uses: actions/checkout@v4
@@ -28,11 +29,11 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Set up Java 11
+    - name: Set up Java 17
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '11'
+        java-version: '17'
 
     - name: Verify Java installation
       run: |
@@ -91,11 +92,11 @@ jobs:
       with:
         python-version: "3.11"
 
-    - name: Set up Java 11
+    - name: Set up Java 17
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '11'
+        java-version: '17'
 
     - name: Install dependencies
       run: |

@@ -1,0 +1,65 @@
+NOTICE — databricks-local
+=========================
+
+This project is an independent, unofficial, open-source tool for local
+development and testing. It is NOT affiliated with, endorsed by, sponsored by,
+or supported by Databricks, Inc.
+
+Trademark Notice
+----------------
+- Databricks® is a registered trademark of Databricks, Inc.
+- Unity Catalog™ is a trademark of Databricks, Inc.
+- Delta Lake™ is a trademark of The Linux Foundation.
+- Apache Spark™ is a trademark of The Apache Software Foundation.
+- All other trademarks are the property of their respective owners.
+
+Use of these names in this project is solely for identification and
+interoperability purposes. No affiliation or endorsement is implied.
+
+This project does NOT:
+- Contain any proprietary Databricks code
+- Redistribute any Databricks software or images
+- Grant any license to Databricks products or services
+- Provide access to Databricks infrastructure
+
+Third-Party Open Source Components
+-----------------------------------
+This project is built entirely on open-source software:
+
+1. Apache Spark 3.5.3
+   License: Apache License 2.0
+   https://spark.apache.org/
+
+2. Delta Lake 3.3.2
+   License: Apache License 2.0
+   https://delta.io/
+
+3. PySpark
+   License: Apache License 2.0
+   https://pypi.org/project/pyspark/
+
+4. PostgreSQL
+   License: PostgreSQL License (MIT-like)
+   https://www.postgresql.org/
+
+5. MinIO
+   License: GNU Affero General Public License v3.0
+   https://min.io/
+
+6. Hadoop AWS SDK
+   License: Apache License 2.0
+   https://hadoop.apache.org/
+
+Intended Use
+------------
+This software is intended exclusively for:
+- Local development and testing of PySpark + Delta Lake pipelines
+- Educational purposes and learning data engineering patterns
+- Prototyping before deploying to cloud environments
+- Unit and integration testing without cloud infrastructure
+
+This software is NOT intended for production use or as a replacement
+for any commercial product.
+
+For production workloads and enterprise features, use official services
+from Databricks (https://databricks.com/) or other cloud providers.

@@ -1041,22 +1041,20 @@ class TestTaskValuesMock:
 
 class TestDataMock:
 
-    @pytest.mark.xfail(
-        strict=False,
-        reason="Bug Spark 3.5 SPARK-47789: DeltaCatalog delegate=null en sesión compartida.",
-    )
     def test_summarize_spark_df(self, spark):
         from databricks_shim.utils import DataMock
 
         dm = DataMock()
-        spark.sql("CREATE DATABASE IF NOT EXISTS `main`.`dm_test`")
+        spark.sql("CREATE DATABASE IF NOT EXISTS dm_test")
         spark.sql("""
-            CREATE TABLE IF NOT EXISTS `main`.`dm_test`.`dm_tbl`
+            CREATE TABLE IF NOT EXISTS dm_test.dm_tbl
             (id INT, val DOUBLE) USING DELTA
         """)
-        spark.sql("INSERT INTO `main`.`dm_test`.`dm_tbl` VALUES (1, 1.5), (2, 2.5)")
-        df = spark.sql("SELECT * FROM `main`.`dm_test`.`dm_tbl`")
+        spark.sql("INSERT INTO dm_test.dm_tbl VALUES (1, 1.5), (2, 2.5)")
+        df = spark.sql("SELECT * FROM dm_test.dm_tbl")
         dm.summarize(df)  # debe ejecutar sin error
+        spark.sql("DROP TABLE IF EXISTS dm_test.dm_tbl")
+        spark.sql("DROP DATABASE IF EXISTS dm_test")
 
 
 # ===========================================================================
@@ -1097,48 +1095,39 @@ class TestParseTagsHelper:
 
 
 class TestThreeLevelNamespace:
-    """Verifica que el namespace catalog.schema.table funciona end-to-end.
+    """Verifica que schema.table funciona end-to-end con Delta Lake.
 
-    Solo usa el catálogo 'main' (pre-registrado al arranque de SparkSession)
-    para evitar el bug de Spark 3.5 (SPARK-47789) con DeltaCatalogs
-    registrados dinámicamente via spark.conf.set().
+    Usa nombres sin prefijo de catálogo (spark_catalog es el predeterminado
+    en Spark 3.5 y no soporta catalog-qualified names via SQL).
     """
 
-    @pytest.mark.xfail(
-        strict=False,
-        reason="Bug Spark 3.5 SPARK-47789: DeltaCatalog delegate=null en sesión compartida. "
-        "Pasa cuando se ejecuta en aislamiento: "
-        "pytest tests/test_unity_catalog.py::TestThreeLevelNamespace",
-    )
     def test_create_table_and_query(self, spark, uc):
-        """Crea tabla en main.ns_default y la consulta."""
-        spark.sql("CREATE DATABASE IF NOT EXISTS `main`.`ns_default`")
+        """Crea tabla en ns_default y la consulta."""
+        spark.sql("CREATE DATABASE IF NOT EXISTS ns_default")
         spark.sql("""
-            CREATE TABLE IF NOT EXISTS `main`.`ns_default`.`test_tbl`
+            CREATE TABLE IF NOT EXISTS ns_default.test_tbl
             (id INT, val STRING)
             USING DELTA
         """)
         spark.sql(
-            "INSERT INTO `main`.`ns_default`.`test_tbl` VALUES (1, 'a'), (2, 'b')"
+            "INSERT INTO ns_default.test_tbl VALUES (1, 'a'), (2, 'b')"
         )
-        df = spark.sql("SELECT * FROM `main`.`ns_default`.`test_tbl`")
+        df = spark.sql("SELECT * FROM ns_default.test_tbl")
         assert df.count() == 2
-        spark.sql("DROP TABLE IF EXISTS `main`.`ns_default`.`test_tbl`")
+        spark.sql("DROP TABLE IF EXISTS ns_default.test_tbl")
+        spark.sql("DROP DATABASE IF EXISTS ns_default")
 
-    @pytest.mark.xfail(
-        strict=False,
-        reason="Bug Spark 3.5 SPARK-47789: DeltaCatalog delegate=null en sesión compartida.",
-    )
     def test_list_tables(self, spark, uc):
-        spark.sql("CREATE DATABASE IF NOT EXISTS `main`.`ns_list_test`")
+        spark.sql("CREATE DATABASE IF NOT EXISTS ns_list_test")
         spark.sql("""
-            CREATE TABLE IF NOT EXISTS `main`.`ns_list_test`.`ns_tbl`
+            CREATE TABLE IF NOT EXISTS ns_list_test.ns_tbl
             (x INT) USING DELTA
         """)
         tables = uc.list_tables("main", "ns_list_test")
         names = [t.name for t in tables]
         assert "ns_tbl" in names
-        spark.sql("DROP TABLE IF EXISTS `main`.`ns_list_test`.`ns_tbl`")
+        spark.sql("DROP TABLE IF EXISTS ns_list_test.ns_tbl")
+        spark.sql("DROP DATABASE IF EXISTS ns_list_test")
 
 
 # ===========================================================================

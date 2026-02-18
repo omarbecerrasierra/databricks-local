@@ -18,7 +18,7 @@ services:
       - VOLUMES_ROOT=s3a://${BUCKET_NAME}/volumes
       - DBFS_ROOT=s3a://${BUCKET_NAME}/dbfs
       - DATABRICKS_CATALOG=main
-      - DATABRICKS_CLUSTER_NAME=databricks-local-uc
+      - DATABRICKS_CLUSTER_NAME=spark-local-uc
       - PYTHONPATH=/app
     volumes:
       - .:/app

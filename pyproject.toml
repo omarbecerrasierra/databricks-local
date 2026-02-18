@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "databricks-local"
 version = "0.4.0"
-description = "Unofficial local development environment for Unity Catalog patterns with PySpark 3.5.3 + Delta Lake 3.3.2 (NOT affiliated with Databricks)"
+description = "Unofficial open-source local development environment with Unity Catalog-style APIs using PySpark 3.5.3 + Delta Lake 3.3.2 (NOT affiliated with Databricks, Inc.)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}

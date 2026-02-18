@@ -32,7 +32,9 @@ def spark(tmp_path_factory):
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.default.parallelism", "2")
         .config("spark.ui.enabled", "false")
-        .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+        .config(
+            "spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false"
+        )
     )
     builder = configure_spark_with_delta_pip(builder)
     session = builder.getOrCreate()

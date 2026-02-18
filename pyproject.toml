@@ -19,17 +19,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Testing",
     "Topic :: Database",
 ]
-
-[project.urls]
-Homepage = "https://github.com/omarbecerrasierra/databricks-local"
-Repository = "https://github.com/omarbecerrasierra/databricks-local"
-Issues = "https://github.com/omarbecerrasierra/databricks-local/issues"
-Discussions = "https://github.com/omarbecerrasierra/databricks-local/discussions"
-Changelog = "https://github.com/omarbecerrasierra/databricks-local/blob/main/CHANGELOG.md"
 dependencies = [
     "pyspark==3.5.3",
     "delta-spark==3.3.2",
@@ -39,13 +31,20 @@ dependencies = [
     "mlflow>=2.21",
 ]
 
-[tool.setuptools.packages.find]
-include = ["databricks_shim*"]
+[project.urls]
+Homepage = "https://github.com/omarbecerrasierra/databricks-local"
+Repository = "https://github.com/omarbecerrasierra/databricks-local"
+Issues = "https://github.com/omarbecerrasierra/databricks-local/issues"
+Discussions = "https://github.com/omarbecerrasierra/databricks-local/discussions"
+Changelog = "https://github.com/omarbecerrasierra/databricks-local/blob/main/CHANGELOG.md"
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "pytest>=8.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["databricks_shim*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

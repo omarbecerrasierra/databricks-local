@@ -5,6 +5,7 @@
 [![Delta Lake 3.3.2](https://img.shields.io/badge/delta-3.3.2-green.svg)](https://delta.io/)
 [![Tests](https://img.shields.io/badge/tests-253%20passed-brightgreen.svg)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/omarbecerrasierra/databricks-local?style=social)](https://github.com/omarbecerrasierra/databricks-local)
 
 > **⚠️ IMPORTANT DISCLAIMER**: This is an **unofficial, independent, open-source project** created for local development and testing. It is **NOT affiliated with, endorsed by, or supported by Databricks, Inc.** Databricks® is a registered trademark of Databricks, Inc. This project is provided "as-is" for educational and development purposes only. See [DISCLAIMER.md](DISCLAIMER.md) for complete legal information.
 
@@ -63,8 +64,8 @@ A local development environment that emulates Unity Catalog and DBUtils APIs com
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/pyspark-unity-catalog-local.git
-cd pyspark-unity-catalog-local
+git clone https://github.com/omarbecerrasierra/databricks-local.git
+cd databricks-local
 
 # Create virtual environment
 python -m venv .venv
@@ -89,7 +90,7 @@ Output:
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/pyspark-unity-catalog-local")
+sys.path.insert(0, "/path/to/databricks-local")
 
 from databricks_shim import inject_notebook_context
 
@@ -138,7 +139,7 @@ The Docker environment includes:
 ## 📁 Project Structure
 
 ```
-pyspark-unity-catalog-local/
+databricks-local/
 ├── databricks_shim/          # Core Unity Catalog + DBUtils implementation
 │   ├── __init__.py           # Main exports
 │   ├── connect.py            # SparkSession factory
@@ -361,8 +362,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 > **Note**: This is a community-driven, open-source project with NO official support.
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/pyspark-unity-catalog-local/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/pyspark-unity-catalog-local/discussions)
+- **Issues**: [GitHub Issues](https://github.com/omarbecerrasierra/databricks-local/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/omarbecerrasierra/databricks-local/discussions)
 - **No SLA or guarantees** - best-effort community support only
 
 For official enterprise support and production-ready solutions, visit [Databricks.com](https://databricks.com/).

@@ -1,12 +1,12 @@
 [project]
-name = "pyspark-unity-catalog-local"
+name = "databricks-local"
 version = "0.4.0"
-description = "Unofficial local development environment for Unity Catalog patterns with PySpark 3.5.3 + Delta Lake 3.3.2 (NOT affiliated with Databricks)"
+description = "Unofficial local Databricks development environment with Unity Catalog, DBUtils, and Delta Lake support (NOT affiliated with Databricks, Inc.)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "Contributors", email = "your-email@example.com"}
+    {name = "Omar Becerra Sierra", email = "omarbecerrasierra@gmail.com"}
 ]
 keywords = ["pyspark", "delta-lake", "unity-catalog", "spark", "data-engineering", "local-development"]
 classifiers = [
@@ -20,6 +20,13 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Topic :: Database",
 ]
+
+[project.urls]
+Homepage = "https://github.com/omarbecerrasierra/databricks-local"
+Repository = "https://github.com/omarbecerrasierra/databricks-local"
+Issues = "https://github.com/omarbecerrasierra/databricks-local/issues"
+Discussions = "https://github.com/omarbecerrasierra/databricks-local/discussions"
+Changelog = "https://github.com/omarbecerrasierra/databricks-local/blob/main/CHANGELOG.md"
 dependencies = [
     "pyspark==3.5.3",
     "delta-spark==3.3.2",

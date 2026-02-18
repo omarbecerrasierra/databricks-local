@@ -110,4 +110,4 @@ For questions about this disclaimer or legal concerns:
 
 **Project License**: MIT License (see LICENSE file)
 
-**Project Repository**: [https://github.com/yourusername/pyspark-unity-catalog-local](https://github.com/yourusername/pyspark-unity-catalog-local)
+**Project Repository**: [https://github.com/omarbecerrasierra/databricks-local](https://github.com/omarbecerrasierra/databricks-local)

@@ -45,10 +45,16 @@ Changelog = "https://github.com/omarbecerrasierra/databricks-local/blob/main/CHA
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "black>=24.0",
+    "ruff>=0.1.0",
 ]
 
 [tool.setuptools.packages.find]
 include = ["databricks_shim*"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311", "py312"]
 
 [tool.ruff.lint]
 # Ignorar nombres de variables ambiguos usados en comprehensions

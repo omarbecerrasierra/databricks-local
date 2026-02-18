@@ -11,14 +11,10 @@ Cubren:
 from __future__ import annotations
 
 import os
-import re
-import sys
 import shutil
 import tempfile
 import pathlib
-import datetime
-from unittest.mock import MagicMock, patch
-from collections import namedtuple
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -30,29 +26,29 @@ os.environ.setdefault("APP_ENV", "local")
 # Fixtures de infraestructura
 # ===========================================================================
 
+
 @pytest.fixture(scope="session")
 def spark():
     """SparkSession mínima con Delta Lake + catálogo main."""
     from pyspark.sql import SparkSession
     from delta import configure_spark_with_delta_pip
 
-    import tempfile
     wh = tempfile.mkdtemp(prefix="uc_test_wh_")
 
     # Solo spark_catalog como DeltaCatalog.
     # Catálogos adicionales (main, hive_metastore) son gestionados por el shim.
     # Ver SPARK-47789: registrar DeltaCatalogs extra causa NPE en Spark 3.5.
     builder = (
-        SparkSession.builder
-        .master("local[1]")
+        SparkSession.builder.master("local[1]")
         .appName("TestUnityCatalog")
-        .config("spark.sql.extensions",
-                "io.delta.sql.DeltaSparkSessionExtension")
-        .config("spark.sql.catalog.spark_catalog",
-                "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-        .config("spark.sql.warehouse.dir",    f"{wh}/main")
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config(
+            "spark.sql.catalog.spark_catalog",
+            "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+        )
+        .config("spark.sql.warehouse.dir", f"{wh}/main")
         .config("spark.sql.shuffle.partitions", "1")
-        .config("spark.default.parallelism",    "1")
+        .config("spark.default.parallelism", "1")
         .config("spark.ui.enabled", "false")
     )
     builder = configure_spark_with_delta_pip(builder)
@@ -70,11 +66,11 @@ def uc_env(tmp_path):
     os.makedirs(vr, exist_ok=True)
     os.makedirs(dr, exist_ok=True)
     os.environ["VOLUMES_ROOT"] = vr
-    os.environ["DBFS_ROOT"]    = dr
+    os.environ["DBFS_ROOT"] = dr
     yield {"volumes": vr, "dbfs": dr}
     # restaurar
     os.environ.pop("VOLUMES_ROOT", None)
-    os.environ.pop("DBFS_ROOT",    None)
+    os.environ.pop("DBFS_ROOT", None)
 
 
 @pytest.fixture()
@@ -95,6 +91,7 @@ def uc(spark, uc_env):
     uc_mod._LINEAGE_LOG.clear()
 
     from databricks_shim.unity_catalog import UnityCatalogShim, init_unity_catalog
+
     init_unity_catalog(spark)
     return UnityCatalogShim(spark)
 
@@ -102,6 +99,7 @@ def uc(spark, uc_env):
 # ===========================================================================
 # 1. SQL Interceptor — normalización
 # ===========================================================================
+
 
 class TestSQLNormalization:
     """El interceptor debe limpiar semicolons y espacios."""
@@ -122,6 +120,7 @@ class TestSQLNormalization:
 # 2. CREATE CATALOG — opciones en cualquier orden
 # ===========================================================================
 
+
 class TestCreateCatalog:
 
     def test_basic(self, uc):
@@ -130,7 +129,7 @@ class TestCreateCatalog:
 
     def test_if_not_exists(self, uc):
         uc.sql("CREATE CATALOG IF NOT EXISTS test_ine")
-        uc.sql("CREATE CATALOG IF NOT EXISTS test_ine")   # no debe lanzar
+        uc.sql("CREATE CATALOG IF NOT EXISTS test_ine")  # no debe lanzar
         cats = [c.name for c in uc.list_catalogs()]
         assert cats.count("test_ine") == 1
 
@@ -142,17 +141,21 @@ class TestCreateCatalog:
     def test_comment_before_managed_location(self, uc, tmp_path):
         """COMMENT puede aparecer antes de MANAGED LOCATION."""
         loc = str(tmp_path / "custom_loc")
-        uc.sql(f"CREATE CATALOG opt_order_cat "
-               f"COMMENT 'test' MANAGED LOCATION '{loc}'")
+        uc.sql(
+            f"CREATE CATALOG opt_order_cat " f"COMMENT 'test' MANAGED LOCATION '{loc}'"
+        )
         import databricks_shim.unity_catalog as m
+
         assert "opt_order_cat" in m._CATALOG_REGISTRY
 
     def test_managed_location_before_comment(self, uc, tmp_path):
         """MANAGED LOCATION puede aparecer antes de COMMENT."""
         loc = str(tmp_path / "custom_loc2")
-        uc.sql(f"CREATE CATALOG opt_order_cat2 "
-               f"MANAGED LOCATION '{loc}' COMMENT 'test'")
+        uc.sql(
+            f"CREATE CATALOG opt_order_cat2 " f"MANAGED LOCATION '{loc}' COMMENT 'test'"
+        )
         import databricks_shim.unity_catalog as m
+
         assert "opt_order_cat2" in m._CATALOG_REGISTRY
 
     def test_python_api(self, uc, tmp_path):
@@ -166,6 +169,7 @@ class TestCreateCatalog:
         # No lanza excepción aunque la ruta s3a:// no exista localmente
         uc.create_catalog("s3_cat", location="s3a://fake-bucket/catalogs/s3_cat")
         import databricks_shim.unity_catalog as m
+
         assert "s3_cat" in m._CATALOG_REGISTRY
 
     def test_foreign_catalog_noop(self, uc):
@@ -179,6 +183,7 @@ class TestCreateCatalog:
 # 3. DROP CATALOG
 # ===========================================================================
 
+
 class TestDropCatalog:
 
     def test_drop_existing(self, uc):
@@ -187,7 +192,7 @@ class TestDropCatalog:
         assert "to_drop" not in [c.name for c in uc.list_catalogs()]
 
     def test_drop_if_exists(self, uc):
-        uc.sql("DROP CATALOG IF EXISTS nonexistent")   # no debe lanzar
+        uc.sql("DROP CATALOG IF EXISTS nonexistent")  # no debe lanzar
 
     def test_raises_without_if_exists(self, uc):
         with pytest.raises(ValueError):
@@ -203,6 +208,7 @@ class TestDropCatalog:
 # 4. DESCRIBE CATALOG / ALTER CATALOG
 # ===========================================================================
 
+
 class TestAlterDescribeCatalog:
 
     def test_describe_catalog(self, uc):
@@ -212,6 +218,7 @@ class TestAlterDescribeCatalog:
         # (evita bug Spark 3.5 con múltiples DeltaCatalogs dinámicos)
         assert df is not None
         from pyspark.sql import DataFrame
+
         assert isinstance(df, DataFrame)
 
     def test_describe_catalog_extended(self, uc):
@@ -222,7 +229,7 @@ class TestAlterDescribeCatalog:
     def test_alter_catalog_set_owner(self, uc):
         uc.sql("CREATE CATALOG IF NOT EXISTS owner_cat")
         result = uc.sql("ALTER CATALOG owner_cat SET OWNER TO admin@co.com")
-        assert result is None   # no-op, no lanza
+        assert result is None  # no-op, no lanza
 
     def test_alter_catalog_set_location(self, uc, tmp_path):
         uc.sql("CREATE CATALOG IF NOT EXISTS loc_cat")
@@ -230,12 +237,14 @@ class TestAlterDescribeCatalog:
         result = uc.sql(f"ALTER CATALOG loc_cat SET LOCATION '{new_loc}'")
         assert result is None
         import databricks_shim.unity_catalog as m
+
         assert m._CATALOG_REGISTRY.get("loc_cat") == new_loc
 
 
 # ===========================================================================
 # 5. Schemas
 # ===========================================================================
+
 
 class TestSchemas:
 
@@ -260,6 +269,7 @@ class TestSchemas:
 # ===========================================================================
 # 6. Volumes
 # ===========================================================================
+
 
 class TestVolumes:
 
@@ -287,8 +297,10 @@ class TestVolumes:
     def test_create_external_volume(self, uc, tmp_path, uc_env):
         loc = str(tmp_path / "ext_vol")
         uc.sql("CREATE CATALOG IF NOT EXISTS vol_cat")
-        uc.sql(f"CREATE EXTERNAL VOLUME IF NOT EXISTS "
-               f"vol_cat.default.ext_vol LOCATION '{loc}'")
+        uc.sql(
+            f"CREATE EXTERNAL VOLUME IF NOT EXISTS "
+            f"vol_cat.default.ext_vol LOCATION '{loc}'"
+        )
         vols = uc.list_volumes("vol_cat")
         v = next((v for v in vols if v.name == "ext_vol"), None)
         assert v is not None
@@ -297,9 +309,14 @@ class TestVolumes:
     def test_create_volume_s3_skips_mkdir(self, uc):
         """Volúmenes con LOCATION s3a:// no hacen mkdir local."""
         uc.sql("CREATE CATALOG IF NOT EXISTS s3_vol_cat")
-        uc.create_volume("s3_vol_cat", "default", "remote_vol",
-                         location="s3a://fake-bucket/volumes/remote_vol")
+        uc.create_volume(
+            "s3_vol_cat",
+            "default",
+            "remote_vol",
+            location="s3a://fake-bucket/volumes/remote_vol",
+        )
         import databricks_shim.unity_catalog as m
+
         assert "s3_vol_cat.default.remote_vol" in m._VOLUME_REGISTRY
 
     def test_drop_volume(self, uc, uc_env):
@@ -319,6 +336,7 @@ class TestVolumes:
         # Solo verificamos que devuelve DataFrame (evita bug Spark 3.5 con collect)
         assert df is not None
         from pyspark.sql import DataFrame
+
         assert isinstance(df, DataFrame)
 
     def test_show_volumes(self, uc, uc_env):
@@ -357,11 +375,14 @@ class TestVolumes:
 # 7. Tags
 # ===========================================================================
 
+
 class TestTags:
 
     def test_set_and_get_tags(self, uc):
-        uc.sql("ALTER TABLE main.bronze.products "
-               "SET TAGS ('env' = 'prod', 'owner' = 'data-eng')")
+        uc.sql(
+            "ALTER TABLE main.bronze.products "
+            "SET TAGS ('env' = 'prod', 'owner' = 'data-eng')"
+        )
         tags = uc.get_tags("main.bronze.products")
         assert tags["env"] == "prod"
         assert tags["owner"] == "data-eng"
@@ -388,8 +409,7 @@ class TestTags:
         assert tags["layer"] == "gold"
 
     def test_set_tags_volume(self, uc):
-        uc.sql("ALTER VOLUME main.raw.files "
-               "SET TAGS ('source' = 's3')")
+        uc.sql("ALTER VOLUME main.raw.files " "SET TAGS ('source' = 's3')")
         assert uc.get_tags("main.raw.files")["source"] == "s3"
 
     def test_comment_on_stored_as_tag(self, uc):
@@ -409,13 +429,15 @@ class TestTags:
 # 8. GRANT / REVOKE — todos los securable types
 # ===========================================================================
 
+
 class TestGrants:
 
     def test_grant_on_table(self, uc):
         uc.sql("GRANT SELECT ON TABLE main.bronze.products TO analyst@co.com")
         grants = uc.show_grants(object_ref="main.bronze.products")
-        assert any(g.privilege == "SELECT" and g.principal == "analyst@co.com"
-                   for g in grants)
+        assert any(
+            g.privilege == "SELECT" and g.principal == "analyst@co.com" for g in grants
+        )
 
     def test_grant_on_metastore_no_object_ref(self, uc):
         """GRANT ON METASTORE no tiene object ref — no debe lanzar AttributeError."""
@@ -462,8 +484,9 @@ class TestGrants:
         uc.sql("GRANT SELECT ON TABLE main.bronze.t1 TO user@co.com")
         uc.sql("REVOKE SELECT ON TABLE main.bronze.t1 FROM user@co.com")
         grants = uc.show_grants(object_ref="main.bronze.t1")
-        assert not any(g.principal == "user@co.com" and g.privilege == "SELECT"
-                       for g in grants)
+        assert not any(
+            g.principal == "user@co.com" and g.privilege == "SELECT" for g in grants
+        )
 
     def test_revoke_metastore(self, uc):
         uc.sql("GRANT CREATE CATALOG ON METASTORE TO eng2")
@@ -513,40 +536,45 @@ class TestGrants:
 # 9. No-op commands (Delta Sharing, External Locations, etc.)
 # ===========================================================================
 
+
 class TestNoOpCommands:
 
-    @pytest.mark.parametrize("sql", [
-        "CREATE SHARE my_share",
-        "DROP SHARE my_share",
-        "SHOW SHARES",
-        "CREATE RECIPIENT recipient1",
-        "DROP RECIPIENT recipient1",
-        "SHOW RECIPIENTS",
-        "CREATE EXTERNAL LOCATION ext_loc",
-        "DROP EXTERNAL LOCATION ext_loc",
-        "SHOW EXTERNAL LOCATIONS",
-        "CREATE STORAGE CREDENTIAL my_cred",
-        "DROP STORAGE CREDENTIAL my_cred",
-        "SHOW STORAGE CREDENTIALS",
-        "CREATE SERVICE CREDENTIAL svc_cred",
-        "DROP SERVICE CREDENTIAL svc_cred",
-        "SHOW SERVICE CREDENTIALS",
-        "CREATE CONNECTION my_conn",
-        "DROP CONNECTION my_conn",
-        "SHOW CONNECTIONS",
-        "CREATE CLEAN ROOM my_room",
-        "DROP CLEAN ROOM my_room",
-        "SHOW CLEAN ROOMS",
-        "REFRESH FOREIGN",
-    ])
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "CREATE SHARE my_share",
+            "DROP SHARE my_share",
+            "SHOW SHARES",
+            "CREATE RECIPIENT recipient1",
+            "DROP RECIPIENT recipient1",
+            "SHOW RECIPIENTS",
+            "CREATE EXTERNAL LOCATION ext_loc",
+            "DROP EXTERNAL LOCATION ext_loc",
+            "SHOW EXTERNAL LOCATIONS",
+            "CREATE STORAGE CREDENTIAL my_cred",
+            "DROP STORAGE CREDENTIAL my_cred",
+            "SHOW STORAGE CREDENTIALS",
+            "CREATE SERVICE CREDENTIAL svc_cred",
+            "DROP SERVICE CREDENTIAL svc_cred",
+            "SHOW SERVICE CREDENTIALS",
+            "CREATE CONNECTION my_conn",
+            "DROP CONNECTION my_conn",
+            "SHOW CONNECTIONS",
+            "CREATE CLEAN ROOM my_room",
+            "DROP CLEAN ROOM my_room",
+            "SHOW CLEAN ROOMS",
+            "REFRESH FOREIGN",
+        ],
+    )
     def test_noop_does_not_raise(self, uc, sql):
         result = uc.sql(sql)
-        assert result is not None   # devuelve DataFrame vacío
+        assert result is not None  # devuelve DataFrame vacío
 
 
 # ===========================================================================
 # 10. information_schema
 # ===========================================================================
+
 
 class TestInformationSchema:
 
@@ -555,6 +583,7 @@ class TestInformationSchema:
         df = uc.information_schema.catalogs()
         assert df is not None
         from pyspark.sql import DataFrame
+
         assert isinstance(df, DataFrame)
         # Verificamos via Python API
         cats = uc.list_catalogs()
@@ -575,13 +604,15 @@ class TestInformationSchema:
 # 11. init_unity_catalog — skip mkdir para rutas remotas
 # ===========================================================================
 
+
 class TestInitUnityCatalog:
 
     def test_local_paths_creates_dirs(self, tmp_path):
         from databricks_shim.unity_catalog import (
-            init_unity_catalog, _CATALOG_REGISTRY,
-            _VOLUME_REGISTRY, _TAG_STORE, _GRANT_LOG,
+            init_unity_catalog,
+            _CATALOG_REGISTRY,
         )
+
         # Limpiar estado global
         _CATALOG_REGISTRY.clear()
 
@@ -590,7 +621,7 @@ class TestInitUnityCatalog:
         old_vr = os.environ.get("VOLUMES_ROOT")
         old_dr = os.environ.get("DBFS_ROOT")
         os.environ["VOLUMES_ROOT"] = vr
-        os.environ["DBFS_ROOT"]    = dr
+        os.environ["DBFS_ROOT"] = dr
 
         spark_mock = MagicMock()
         init_unity_catalog(spark_mock)
@@ -599,41 +630,53 @@ class TestInitUnityCatalog:
         assert pathlib.Path(dr).exists()
 
         # Restaurar
-        if old_vr: os.environ["VOLUMES_ROOT"] = old_vr
-        else: os.environ.pop("VOLUMES_ROOT", None)
-        if old_dr: os.environ["DBFS_ROOT"] = old_dr
-        else: os.environ.pop("DBFS_ROOT", None)
+        if old_vr:
+            os.environ["VOLUMES_ROOT"] = old_vr
+        else:
+            os.environ.pop("VOLUMES_ROOT", None)
+        if old_dr:
+            os.environ["DBFS_ROOT"] = old_dr
+        else:
+            os.environ.pop("DBFS_ROOT", None)
 
     def test_s3_paths_skips_mkdir(self):
         """Rutas s3a:// no deben hacer mkdir (evitar crash en Docker/MinIO)."""
         from databricks_shim.unity_catalog import (
-            init_unity_catalog, _CATALOG_REGISTRY,
+            init_unity_catalog,
+            _CATALOG_REGISTRY,
         )
+
         _CATALOG_REGISTRY.clear()
 
         old_vr = os.environ.get("VOLUMES_ROOT")
         old_dr = os.environ.get("DBFS_ROOT")
         os.environ["VOLUMES_ROOT"] = "s3a://fake-bucket/volumes"
-        os.environ["DBFS_ROOT"]    = "s3a://fake-bucket/dbfs"
+        os.environ["DBFS_ROOT"] = "s3a://fake-bucket/dbfs"
 
         spark_mock = MagicMock()
         # No debe lanzar excepción aunque las rutas s3a:// no existan localmente
         init_unity_catalog(spark_mock)
 
-        if old_vr: os.environ["VOLUMES_ROOT"] = old_vr
-        else: os.environ.pop("VOLUMES_ROOT", None)
-        if old_dr: os.environ["DBFS_ROOT"] = old_dr
-        else: os.environ.pop("DBFS_ROOT", None)
+        if old_vr:
+            os.environ["VOLUMES_ROOT"] = old_vr
+        else:
+            os.environ.pop("VOLUMES_ROOT", None)
+        if old_dr:
+            os.environ["DBFS_ROOT"] = old_dr
+        else:
+            os.environ.pop("DBFS_ROOT", None)
 
 
 # ===========================================================================
 # 12. Path helpers de unity_catalog
 # ===========================================================================
 
+
 class TestPathHelpers:
 
     def test_is_volume_path(self):
         from databricks_shim.unity_catalog import is_volume_path
+
         assert is_volume_path("/Volumes/cat/sch/vol/file.txt")
         assert is_volume_path("/Volumes/")
         assert not is_volume_path("/tmp/file.txt")
@@ -642,6 +685,7 @@ class TestPathHelpers:
 
     def test_is_dbfs_path(self):
         from databricks_shim.unity_catalog import is_dbfs_path
+
         assert is_dbfs_path("dbfs:/tmp/file.txt")
         assert is_dbfs_path("dbfs://file")
         assert not is_dbfs_path("/Volumes/cat/sch/vol")
@@ -649,18 +693,21 @@ class TestPathHelpers:
 
     def test_resolve_volume_path(self, uc_env):
         from databricks_shim.unity_catalog import resolve_volume_path
+
         resolved = resolve_volume_path("/Volumes/main/bronze/raw/data.csv")
         assert resolved.startswith(uc_env["volumes"])
         assert resolved.endswith("main/bronze/raw/data.csv")
 
     def test_resolve_dbfs_path(self, uc_env):
         from databricks_shim.unity_catalog import resolve_dbfs_path
+
         resolved = resolve_dbfs_path("dbfs:/tmp/hello.txt")
         assert resolved.startswith(uc_env["dbfs"])
         assert resolved.endswith("tmp/hello.txt")
 
     def test_resolve_dbfs_double_slash(self, uc_env):
         from databricks_shim.unity_catalog import resolve_dbfs_path
+
         resolved = resolve_dbfs_path("dbfs://tmp/hello.txt")
         assert "tmp/hello.txt" in resolved
 
@@ -668,6 +715,7 @@ class TestPathHelpers:
 # ===========================================================================
 # 13. FSMock — rutas UC y DBFS
 # ===========================================================================
+
 
 class TestFSMockUCPaths:
 
@@ -678,14 +726,15 @@ class TestFSMockUCPaths:
         os.makedirs(vr, exist_ok=True)
         os.makedirs(dr, exist_ok=True)
         os.environ["VOLUMES_ROOT"] = vr
-        os.environ["DBFS_ROOT"]    = dr
+        os.environ["DBFS_ROOT"] = dr
         yield {"volumes": vr, "dbfs": dr, "tmp": tmp_path}
         os.environ.pop("VOLUMES_ROOT", None)
-        os.environ.pop("DBFS_ROOT",    None)
+        os.environ.pop("DBFS_ROOT", None)
 
     @pytest.fixture()
     def fs(self):
         from databricks_shim.utils import FSMock
+
         return FSMock(spark=None)
 
     def test_put_volume_path(self, fs, fs_env):
@@ -714,8 +763,9 @@ class TestFSMockUCPaths:
         fs.put("/Volumes/main/bronze/ls/b.csv", "data2", overwrite=True)
         files = fs.ls("/Volumes/main/bronze/ls/")
         for fi in files:
-            assert fi.path.startswith("/Volumes/"), \
-                f"path debe tener /Volumes/ prefix: {fi.path}"
+            assert fi.path.startswith(
+                "/Volumes/"
+            ), f"path debe tener /Volumes/ prefix: {fi.path}"
         names = [fi.name for fi in files]
         assert "a.csv" in names
         assert "b.csv" in names
@@ -725,8 +775,9 @@ class TestFSMockUCPaths:
         fs.put("dbfs:/ls_test/x.txt", "x", overwrite=True)
         files = fs.ls("dbfs:/ls_test/")
         for fi in files:
-            assert fi.path.startswith("dbfs:/"), \
-                f"path debe tener dbfs:/ prefix: {fi.path}"
+            assert fi.path.startswith(
+                "dbfs:/"
+            ), f"path debe tener dbfs:/ prefix: {fi.path}"
 
     def test_ls_returned_path_usable_with_head(self, fs, fs_env):
         """El path devuelto por ls() debe funcionar con head()."""
@@ -746,8 +797,7 @@ class TestFSMockUCPaths:
 
     def test_cp_volume_path(self, fs, fs_env):
         fs.put("/Volumes/main/bronze/cp/src.txt", "src_data", overwrite=True)
-        fs.cp("/Volumes/main/bronze/cp/src.txt",
-              "/Volumes/main/bronze/cp/dst.txt")
+        fs.cp("/Volumes/main/bronze/cp/src.txt", "/Volumes/main/bronze/cp/dst.txt")
         content = fs.head("/Volumes/main/bronze/cp/dst.txt")
         assert "src_data" in content
 
@@ -787,11 +837,13 @@ class TestFSMockUCPaths:
 # 14. SecretsMock
 # ===========================================================================
 
+
 class TestSecretsMock:
 
     @pytest.fixture()
     def secrets(self):
         from databricks_shim.utils import SecretsMock
+
         return SecretsMock()
 
     def test_get_scoped_key(self, secrets):
@@ -808,7 +860,7 @@ class TestSecretsMock:
 
     def test_scoped_has_priority_over_direct(self, secrets):
         os.environ["SC_K"] = "scoped"
-        os.environ["K"]    = "direct"
+        os.environ["K"] = "direct"
         val = secrets.get("sc", "k")
         assert val == "scoped"
         del os.environ["SC_K"], os.environ["K"]
@@ -844,11 +896,13 @@ class TestSecretsMock:
 # 15. WidgetsMock
 # ===========================================================================
 
+
 class TestWidgetsMock:
 
     @pytest.fixture()
     def w(self):
         from databricks_shim.utils import WidgetsMock
+
         return WidgetsMock()
 
     def test_text_and_get(self, w):
@@ -908,11 +962,13 @@ class TestWidgetsMock:
 # 16. CredentialsMock — incluye getServiceCredentialsProvider
 # ===========================================================================
 
+
 class TestCredentialsMock:
 
     @pytest.fixture()
     def creds(self):
         from databricks_shim.utils import CredentialsMock
+
         return CredentialsMock()
 
     def test_assume_role(self, creds):
@@ -927,6 +983,7 @@ class TestCredentialsMock:
     def test_get_service_credentials_provider(self, creds):
         """Nuevo método UC — debe retornar dict compatible y emitir warning."""
         import warnings
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = creds.getServiceCredentialsProvider("my_cred")
@@ -941,11 +998,13 @@ class TestCredentialsMock:
 # 17. TaskValuesMock (dbutils.jobs)
 # ===========================================================================
 
+
 class TestTaskValuesMock:
 
     @pytest.fixture()
     def tv(self):
         from databricks_shim.utils import TaskValuesMock
+
         return TaskValuesMock()
 
     def test_set_and_get(self, tv):
@@ -975,6 +1034,7 @@ class TestTaskValuesMock:
 # 18. DataMock (dbutils.data.summarize)
 # ===========================================================================
 
+
 class TestDataMock:
 
     @pytest.mark.xfail(
@@ -983,40 +1043,48 @@ class TestDataMock:
     )
     def test_summarize_spark_df(self, spark):
         from databricks_shim.utils import DataMock
+
         dm = DataMock()
         spark.sql("CREATE DATABASE IF NOT EXISTS `main`.`dm_test`")
-        spark.sql("""
+        spark.sql(
+            """
             CREATE TABLE IF NOT EXISTS `main`.`dm_test`.`dm_tbl`
             (id INT, val DOUBLE) USING DELTA
-        """)
+        """
+        )
         spark.sql("INSERT INTO `main`.`dm_test`.`dm_tbl` VALUES (1, 1.5), (2, 2.5)")
         df = spark.sql("SELECT * FROM `main`.`dm_test`.`dm_tbl`")
-        dm.summarize(df)   # debe ejecutar sin error
+        dm.summarize(df)  # debe ejecutar sin error
 
 
 # ===========================================================================
 # 19. _parse_tags helper
 # ===========================================================================
 
+
 class TestParseTagsHelper:
 
     def test_single_quoted(self):
         from databricks_shim.unity_catalog import _parse_tags
+
         result = _parse_tags("'env' = 'prod'")
         assert result == {"env": "prod"}
 
     def test_multiple_tags(self):
         from databricks_shim.unity_catalog import _parse_tags
+
         result = _parse_tags("'env' = 'prod', 'owner' = 'data-eng'")
         assert result == {"env": "prod", "owner": "data-eng"}
 
     def test_unquoted_key(self):
         from databricks_shim.unity_catalog import _parse_tags
+
         result = _parse_tags("env = 'prod'")
         assert result["env"] == "prod"
 
     def test_backtick_key(self):
         from databricks_shim.unity_catalog import _parse_tags
+
         result = _parse_tags("`env` = 'prod'")
         assert result["env"] == "prod"
 
@@ -1024,6 +1092,7 @@ class TestParseTagsHelper:
 # ===========================================================================
 # 20. Integración: pipeline ETL con namespace de tres niveles
 # ===========================================================================
+
 
 class TestThreeLevelNamespace:
     """Verifica que el namespace catalog.schema.table funciona end-to-end.
@@ -1036,18 +1105,22 @@ class TestThreeLevelNamespace:
     @pytest.mark.xfail(
         strict=False,
         reason="Bug Spark 3.5 SPARK-47789: DeltaCatalog delegate=null en sesión compartida. "
-               "Pasa cuando se ejecuta en aislamiento: "
-               "pytest tests/test_unity_catalog.py::TestThreeLevelNamespace",
+        "Pasa cuando se ejecuta en aislamiento: "
+        "pytest tests/test_unity_catalog.py::TestThreeLevelNamespace",
     )
     def test_create_table_and_query(self, spark, uc):
         """Crea tabla en main.ns_default y la consulta."""
         spark.sql("CREATE DATABASE IF NOT EXISTS `main`.`ns_default`")
-        spark.sql("""
+        spark.sql(
+            """
             CREATE TABLE IF NOT EXISTS `main`.`ns_default`.`test_tbl`
             (id INT, val STRING)
             USING DELTA
-        """)
-        spark.sql("INSERT INTO `main`.`ns_default`.`test_tbl` VALUES (1, 'a'), (2, 'b')")
+        """
+        )
+        spark.sql(
+            "INSERT INTO `main`.`ns_default`.`test_tbl` VALUES (1, 'a'), (2, 'b')"
+        )
         df = spark.sql("SELECT * FROM `main`.`ns_default`.`test_tbl`")
         assert df.count() == 2
         spark.sql("DROP TABLE IF EXISTS `main`.`ns_default`.`test_tbl`")
@@ -1058,10 +1131,12 @@ class TestThreeLevelNamespace:
     )
     def test_list_tables(self, spark, uc):
         spark.sql("CREATE DATABASE IF NOT EXISTS `main`.`ns_list_test`")
-        spark.sql("""
+        spark.sql(
+            """
             CREATE TABLE IF NOT EXISTS `main`.`ns_list_test`.`ns_tbl`
             (x INT) USING DELTA
-        """)
+        """
+        )
         tables = uc.list_tables("main", "ns_list_test")
         names = [t.name for t in tables]
         assert "ns_tbl" in names
@@ -1071,6 +1146,7 @@ class TestThreeLevelNamespace:
 # ===========================================================================
 # 16. USE CATALOG / USE SCHEMA
 # ===========================================================================
+
 
 class TestUseCatalogSchema:
     """Pruebas de USE CATALOG y USE SCHEMA via SQL interceptor."""
@@ -1106,6 +1182,7 @@ class TestUseCatalogSchema:
 # 17. SHOW CATALOGS
 # ===========================================================================
 
+
 class TestShowCatalogs:
     """Pruebas de SHOW CATALOGS via SQL interceptor."""
 
@@ -1130,6 +1207,7 @@ class TestShowCatalogs:
 # ===========================================================================
 # 18. CREATE / DROP / DESCRIBE SCHEMA via SQL
 # ===========================================================================
+
 
 class TestSchemaSQL:
     """Pruebas de CREATE/DROP/DESCRIBE SCHEMA via SQL interceptor."""
@@ -1170,21 +1248,23 @@ class TestSchemaSQL:
 # 19. Funciones (CREATE / DROP / DESCRIBE / SHOW / list_functions)
 # ===========================================================================
 
+
 class TestFunctions:
     """Pruebas de gestión de funciones UC."""
 
     def test_create_function_api(self, uc):
-        uc.create_function("main", "default", "my_func",
-                          definition="SELECT 1", description="test func")
+        uc.create_function(
+            "main", "default", "my_func", definition="SELECT 1", description="test func"
+        )
         funcs = uc.list_functions("main", "default")
         names = [f.name for f in funcs]
         assert "my_func" in names
 
     def test_create_function_if_not_exists(self, uc):
-        uc.create_function("main", "default", "dup_func",
-                          if_not_exists=True)
-        uc.create_function("main", "default", "dup_func",
-                          if_not_exists=True)  # no error
+        uc.create_function("main", "default", "dup_func", if_not_exists=True)
+        uc.create_function(
+            "main", "default", "dup_func", if_not_exists=True
+        )  # no error
         funcs = uc.list_functions("main", "default")
         names = [f.name for f in funcs]
         assert names.count("dup_func") == 1
@@ -1209,8 +1289,13 @@ class TestFunctions:
             uc.drop_function("main", "default", "no_such_func")
 
     def test_describe_function_sql(self, uc):
-        uc.create_function("main", "default", "desc_func",
-                          definition="SELECT 42", description="returns 42")
+        uc.create_function(
+            "main",
+            "default",
+            "desc_func",
+            definition="SELECT 42",
+            description="returns 42",
+        )
         df = uc.describe_function_sql("main.default.desc_func")
         rows = {r.info_name: r.info_value for r in df.collect()}
         assert rows["Description"] == "returns 42"
@@ -1223,6 +1308,7 @@ class TestFunctions:
 # ===========================================================================
 # 20. Grupos (CREATE / DROP / ALTER / SHOW)
 # ===========================================================================
+
 
 class TestGroups:
     """Pruebas de gestión de grupos UC."""
@@ -1316,6 +1402,7 @@ class TestGroups:
 # 21. DENY
 # ===========================================================================
 
+
 class TestDeny:
     """Pruebas de DENY via SQL y API."""
 
@@ -1338,6 +1425,7 @@ class TestDeny:
 # ===========================================================================
 # 22. UNDROP TABLE / SHOW TABLES DROPPED
 # ===========================================================================
+
 
 class TestUndropTable:
     """Pruebas de UNDROP TABLE y SHOW TABLES DROPPED."""
@@ -1375,6 +1463,7 @@ class TestUndropTable:
 # 23. Lineage
 # ===========================================================================
 
+
 class TestLineage:
     """Pruebas de tracking de linaje."""
 
@@ -1409,63 +1498,67 @@ class TestLineage:
 # 24. Expanded No-op commands
 # ===========================================================================
 
+
 class TestExpandedNoOps:
     """Pruebas de comandos no-op adicionales."""
 
-    @pytest.mark.parametrize("cmd", [
-        "CREATE MATERIALIZED VIEW mv_test AS SELECT 1",
-        "DROP MATERIALIZED VIEW IF EXISTS mv_test",
-        "ALTER MATERIALIZED VIEW mv_test REFRESH",
-        "CREATE STREAMING TABLE st_test AS SELECT 1",
-        "DROP STREAMING TABLE IF EXISTS st_test",
-        "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END",
-        "DROP PROCEDURE IF EXISTS my_proc",
-        "ALTER SHARE my_share ADD TABLE t1",
-        "DROP SHARE IF EXISTS my_share",
-        "DESCRIBE SHARE my_share",
-        "SHOW SHARES",
-        "DROP RECIPIENT IF EXISTS my_recip",
-        "DESCRIBE RECIPIENT my_recip",
-        "SHOW RECIPIENTS",
-        "CREATE PROVIDER my_prov",
-        "DROP PROVIDER IF EXISTS my_prov",
-        "ALTER PROVIDER my_prov",
-        "DESCRIBE PROVIDER my_prov",
-        "SHOW PROVIDERS",
-        "CREATE CONNECTION my_conn",
-        "DROP CONNECTION IF EXISTS my_conn",
-        "ALTER CONNECTION my_conn",
-        "DESCRIBE CONNECTION my_conn",
-        "SHOW CONNECTIONS",
-        "CREATE STORAGE CREDENTIAL my_cred",
-        "DROP STORAGE CREDENTIAL IF EXISTS my_cred",
-        "ALTER STORAGE CREDENTIAL my_cred",
-        "DESCRIBE STORAGE CREDENTIAL my_cred",
-        "SHOW STORAGE CREDENTIALS",
-        "CREATE SERVICE CREDENTIAL svc_cred",
-        "DROP SERVICE CREDENTIAL IF EXISTS svc_cred",
-        "ALTER SERVICE CREDENTIAL svc_cred",
-        "DESCRIBE SERVICE CREDENTIAL svc_cred",
-        "SHOW SERVICE CREDENTIALS",
-        "CREATE EXTERNAL LOCATION my_loc",
-        "DROP EXTERNAL LOCATION IF EXISTS my_loc",
-        "ALTER EXTERNAL LOCATION my_loc",
-        "DESCRIBE EXTERNAL LOCATION my_loc",
-        "SHOW EXTERNAL LOCATIONS",
-        "CREATE CLEAN ROOM my_room",
-        "DROP CLEAN ROOM IF EXISTS my_room",
-        "ALTER CLEAN ROOM my_room",
-        "DESCRIBE CLEAN ROOM my_room",
-        "SHOW CLEAN ROOMS",
-        "REFRESH FOREIGN CATALOG ext_cat",
-        "REFRESH MATERIALIZED VIEW mv_test",
-        "REFRESH STREAMING TABLE st_test",
-        "CREATE SERVER my_server",
-        "DROP SERVER IF EXISTS my_server",
-        "SYNC SCHEMA my_schema",
-        "MSCK REPAIR PRIVILEGES",
-        "SET RECIPIENT my_recip PROPERTIES ()",
-    ])
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            "CREATE MATERIALIZED VIEW mv_test AS SELECT 1",
+            "DROP MATERIALIZED VIEW IF EXISTS mv_test",
+            "ALTER MATERIALIZED VIEW mv_test REFRESH",
+            "CREATE STREAMING TABLE st_test AS SELECT 1",
+            "DROP STREAMING TABLE IF EXISTS st_test",
+            "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END",
+            "DROP PROCEDURE IF EXISTS my_proc",
+            "ALTER SHARE my_share ADD TABLE t1",
+            "DROP SHARE IF EXISTS my_share",
+            "DESCRIBE SHARE my_share",
+            "SHOW SHARES",
+            "DROP RECIPIENT IF EXISTS my_recip",
+            "DESCRIBE RECIPIENT my_recip",
+            "SHOW RECIPIENTS",
+            "CREATE PROVIDER my_prov",
+            "DROP PROVIDER IF EXISTS my_prov",
+            "ALTER PROVIDER my_prov",
+            "DESCRIBE PROVIDER my_prov",
+            "SHOW PROVIDERS",
+            "CREATE CONNECTION my_conn",
+            "DROP CONNECTION IF EXISTS my_conn",
+            "ALTER CONNECTION my_conn",
+            "DESCRIBE CONNECTION my_conn",
+            "SHOW CONNECTIONS",
+            "CREATE STORAGE CREDENTIAL my_cred",
+            "DROP STORAGE CREDENTIAL IF EXISTS my_cred",
+            "ALTER STORAGE CREDENTIAL my_cred",
+            "DESCRIBE STORAGE CREDENTIAL my_cred",
+            "SHOW STORAGE CREDENTIALS",
+            "CREATE SERVICE CREDENTIAL svc_cred",
+            "DROP SERVICE CREDENTIAL IF EXISTS svc_cred",
+            "ALTER SERVICE CREDENTIAL svc_cred",
+            "DESCRIBE SERVICE CREDENTIAL svc_cred",
+            "SHOW SERVICE CREDENTIALS",
+            "CREATE EXTERNAL LOCATION my_loc",
+            "DROP EXTERNAL LOCATION IF EXISTS my_loc",
+            "ALTER EXTERNAL LOCATION my_loc",
+            "DESCRIBE EXTERNAL LOCATION my_loc",
+            "SHOW EXTERNAL LOCATIONS",
+            "CREATE CLEAN ROOM my_room",
+            "DROP CLEAN ROOM IF EXISTS my_room",
+            "ALTER CLEAN ROOM my_room",
+            "DESCRIBE CLEAN ROOM my_room",
+            "SHOW CLEAN ROOMS",
+            "REFRESH FOREIGN CATALOG ext_cat",
+            "REFRESH MATERIALIZED VIEW mv_test",
+            "REFRESH STREAMING TABLE st_test",
+            "CREATE SERVER my_server",
+            "DROP SERVER IF EXISTS my_server",
+            "SYNC SCHEMA my_schema",
+            "MSCK REPAIR PRIVILEGES",
+            "SET RECIPIENT my_recip PROPERTIES ()",
+        ],
+    )
     def test_expanded_noop(self, uc, cmd):
         """Todos los no-ops deben ejecutarse sin error."""
         result = uc.sql(cmd)
@@ -1484,6 +1577,7 @@ class TestExpandedNoOps:
 # ===========================================================================
 # 25. Expanded information_schema
 # ===========================================================================
+
 
 class TestExpandedInformationSchema:
     """Pruebas de information_schema expandido."""
@@ -1511,8 +1605,7 @@ class TestExpandedInformationSchema:
         assert df.count() == 0
 
     def test_routines_with_function(self, uc):
-        uc.create_function("main", "default", "info_func",
-                          description="test routine")
+        uc.create_function("main", "default", "info_func", description="test routine")
         df = uc.information_schema.routines("main", "default")
         assert df.count() == 1
         row = df.collect()[0]
@@ -1523,14 +1616,16 @@ class TestExpandedInformationSchema:
 # 26. GRANT/REVOKE ON SHARE y SHOW GRANTS ON SHARE / TO RECIPIENT
 # ===========================================================================
 
+
 class TestShareGrants:
     """Pruebas de GRANT/REVOKE ON SHARE via SQL interceptor."""
 
     def test_grant_on_share(self, uc):
         uc.sql("GRANT SELECT ON SHARE my_share TO recipient_x")
         grants = uc.show_grants()
-        assert any(g.object_type == "SHARE" and g.object_key == "my_share"
-                    for g in grants)
+        assert any(
+            g.object_type == "SHARE" and g.object_key == "my_share" for g in grants
+        )
 
     def test_revoke_on_share(self, uc):
         uc.sql("GRANT SELECT ON SHARE revoke_share TO user_y")
@@ -1552,6 +1647,7 @@ class TestShareGrants:
 # ===========================================================================
 # 27. ALTER VOLUME / GET / PUT / REMOVE / LIST
 # ===========================================================================
+
 
 class TestVolumeOps:
     """Pruebas de ALTER VOLUME, GET, PUT, REMOVE, LIST via SQL."""
@@ -1581,8 +1677,7 @@ class TestVolumeOps:
         os.makedirs(vol_dir, exist_ok=True)
         with open(os.path.join(vol_dir, "data.txt"), "w") as f:
             f.write("hello")
-        uc.create_volume("main", "default", "test_list_vol",
-                        if_not_exists=True)
+        uc.create_volume("main", "default", "test_list_vol", if_not_exists=True)
         df = uc.sql(f"LIST '{vol_dir}'")
         assert df.count() >= 1
 
@@ -1590,6 +1685,7 @@ class TestVolumeOps:
 # ===========================================================================
 # 28. DESCRIBE SCHEMA API
 # ===========================================================================
+
 
 class TestDescribeSchemaAPI:
     """Pruebas de describe_schema via API."""

@@ -50,6 +50,10 @@ dev = [
 [tool.setuptools.packages.find]
 include = ["databricks_shim*"]
 
+[tool.ruff.lint]
+# Ignorar nombres de variables ambiguos usados en comprehensions
+ignore = ["E741"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

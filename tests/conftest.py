@@ -12,8 +12,6 @@ spark.conf.set() en una sesión ya activa: la siguiente sesión reutilizaría
 el estado corrupto con SparkSession.builder.getOrCreate().
 """
 
-import pytest
-
 
 def pytest_runtest_setup(item):
     """Asegurar que no hay sesión Spark activa antes de cada módulo nuevo."""

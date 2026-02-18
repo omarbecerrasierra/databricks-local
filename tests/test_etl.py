@@ -1,7 +1,6 @@
 import os
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock
 
 os.environ.setdefault("APP_ENV", "local")
 
@@ -9,8 +8,10 @@ from pyspark.sql import SparkSession
 from delta import configure_spark_with_delta_pip
 
 from main import (
-    SCHEMA, PRODUCTS,
-    ingest_bronze, process_silver, aggregate_gold, simulate_append,
+    ingest_bronze,
+    process_silver,
+    aggregate_gold,
+    simulate_append,
 )
 
 
@@ -20,13 +21,13 @@ def spark(tmp_path_factory):
     wh = str(tmp_path_factory.mktemp("warehouse"))
     # Solo spark_catalog como DeltaCatalog — ver SPARK-47789.
     builder = (
-        SparkSession.builder
-        .master("local[1]")
+        SparkSession.builder.master("local[1]")
         .appName("TestETL")
-        .config("spark.sql.extensions",
-                "io.delta.sql.DeltaSparkSessionExtension")
-        .config("spark.sql.catalog.spark_catalog",
-                "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config(
+            "spark.sql.catalog.spark_catalog",
+            "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+        )
         .config("spark.sql.warehouse.dir", f"{wh}/main")
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.default.parallelism", "2")
@@ -84,6 +85,7 @@ def test_append_time_travel(spark, tmp_path):
     bronze = _bronze(tmp_path)
     ingest_bronze(spark, bronze)
     from delta.tables import DeltaTable
+
     v0 = DeltaTable.forPath(spark, bronze).toDF().count()
     simulate_append(spark, bronze)
     assert DeltaTable.forPath(spark, bronze).toDF().count() == v0 + 2

@@ -32,18 +32,18 @@ def get_spark_session(app_name: str = "DatabricksLocal") -> SparkSession:
 
     # ── Builder base con extensiones Delta ───────────────────────────────────
     builder = (
-        SparkSession.builder
-        .appName(app_name)
+        SparkSession.builder.appName(app_name)
         .master("local[*]")
-        .config("spark.sql.extensions",
-                "io.delta.sql.DeltaSparkSessionExtension")
-        .config("spark.sql.catalog.spark_catalog",
-                "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config(
+            "spark.sql.catalog.spark_catalog",
+            "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+        )
     )
 
     # ── S3A / MinIO ───────────────────────────────────────────────────────────
-    endpoint    = os.getenv("AWS_ENDPOINT_URL")
-    bucket_name = None   # definida aquí para que sea visible fuera del if
+    endpoint = os.getenv("AWS_ENDPOINT_URL")
+    bucket_name = None  # definida aquí para que sea visible fuera del if
     if endpoint:
         bucket_name = os.getenv("BUCKET_NAME")
         if not bucket_name:
@@ -52,22 +52,30 @@ def get_spark_session(app_name: str = "DatabricksLocal") -> SparkSession:
                 "Defínela en tu .env o variables de entorno."
             )
         storage_prefix = os.getenv("STORAGE_PREFIX", "s3a")
-        builder = builder \
-            .config("spark.hadoop.fs.s3a.endpoint", endpoint) \
-            .config("spark.hadoop.fs.s3a.access.key",
-                    os.getenv("AWS_ACCESS_KEY_ID")) \
-            .config("spark.hadoop.fs.s3a.secret.key",
-                    os.getenv("AWS_SECRET_ACCESS_KEY")) \
-            .config("spark.hadoop.fs.s3a.path.style.access", "true") \
-            .config("spark.hadoop.fs.s3a.impl",
-                    "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-            .config("spark.hadoop.fs.s3a.aws.credentials.provider",
-                    "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
-            .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
-            .config("spark.hadoop.fs.s3a.endpoint.region",
-                    os.getenv("AWS_REGION", "us-east-1")) \
-            .config("spark.delta.logStore.class",
-                    "org.apache.spark.sql.delta.storage.S3SingleDriverLogStore")
+        builder = (
+            builder.config("spark.hadoop.fs.s3a.endpoint", endpoint)
+            .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
+            .config(
+                "spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY")
+            )
+            .config("spark.hadoop.fs.s3a.path.style.access", "true")
+            .config(
+                "spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"
+            )
+            .config(
+                "spark.hadoop.fs.s3a.aws.credentials.provider",
+                "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+            )
+            .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+            .config(
+                "spark.hadoop.fs.s3a.endpoint.region",
+                os.getenv("AWS_REGION", "us-east-1"),
+            )
+            .config(
+                "spark.delta.logStore.class",
+                "org.apache.spark.sql.delta.storage.S3SingleDriverLogStore",
+            )
+        )
 
     # ── Hive Metastore (PostgreSQL) ───────────────────────────────────────────
     pg = os.getenv("POSTGRES_HOST")
@@ -79,20 +87,29 @@ def get_spark_session(app_name: str = "DatabricksLocal") -> SparkSession:
         auto_create_metastore = os.getenv(
             "HIVE_METASTORE_AUTO_CREATE", "true"
         ).strip().lower() in {"1", "true", "yes", "y", "on"}
-        builder = builder \
-            .config("spark.hadoop.javax.jdo.option.ConnectionURL",
-                    f"jdbc:postgresql://{pg}:5432/{os.getenv('POSTGRES_DB')}") \
-            .config("spark.hadoop.javax.jdo.option.ConnectionDriverName",
-                    "org.postgresql.Driver") \
-            .config("spark.hadoop.javax.jdo.option.ConnectionUserName",
-                    os.getenv("POSTGRES_USER")) \
-            .config("spark.hadoop.javax.jdo.option.ConnectionPassword",
-                    os.getenv("POSTGRES_PASSWORD")) \
+        builder = (
+            builder.config(
+                "spark.hadoop.javax.jdo.option.ConnectionURL",
+                f"jdbc:postgresql://{pg}:5432/{os.getenv('POSTGRES_DB')}",
+            )
+            .config(
+                "spark.hadoop.javax.jdo.option.ConnectionDriverName",
+                "org.postgresql.Driver",
+            )
+            .config(
+                "spark.hadoop.javax.jdo.option.ConnectionUserName",
+                os.getenv("POSTGRES_USER"),
+            )
+            .config(
+                "spark.hadoop.javax.jdo.option.ConnectionPassword",
+                os.getenv("POSTGRES_PASSWORD"),
+            )
             .config(
                 "spark.hadoop.datanucleus.schema.autoCreateAll",
                 "true" if auto_create_metastore else "false",
-            ) \
+            )
             .config("spark.hadoop.hive.metastore.schema.verification", "false")
+        )
 
     # ── Unity Catalog — catálogos múltiples (three-level namespace) ───────────
     #
@@ -107,17 +124,16 @@ def get_spark_session(app_name: str = "DatabricksLocal") -> SparkSession:
         storage_prefix = os.getenv("STORAGE_PREFIX", "s3a")
         wh_base = f"{storage_prefix}://{bucket_name}/warehouse"
     else:
-        local_wh = os.getenv("LOCAL_WAREHOUSE",
-                              os.path.join(os.getcwd(), ".warehouse"))
-        pathlib.Path(os.path.join(local_wh, "main")).mkdir(
-            parents=True, exist_ok=True)
+        local_wh = os.getenv("LOCAL_WAREHOUSE", os.path.join(os.getcwd(), ".warehouse"))
+        pathlib.Path(os.path.join(local_wh, "main")).mkdir(parents=True, exist_ok=True)
         pathlib.Path(os.path.join(local_wh, "hive_metastore")).mkdir(
-            parents=True, exist_ok=True)
+            parents=True, exist_ok=True
+        )
         wh_base = local_wh
 
     def _wh(cat: str) -> str:
         """Warehouse path para un catálogo dado."""
-        if "://" in wh_base:           # S3 / MinIO
+        if "://" in wh_base:  # S3 / MinIO
             return f"{wh_base}/{cat}"
         return os.path.join(wh_base, cat)
 
@@ -134,8 +150,7 @@ def get_spark_session(app_name: str = "DatabricksLocal") -> SparkSession:
     # tres niveles y lo enruta al 'spark_catalog'.
     #
     # Nota: spark.sql.defaultCatalog = "spark_catalog" (default de Spark).
-    builder = builder \
-        .config("spark.sql.warehouse.dir", _wh("main"))
+    builder = builder.config("spark.sql.warehouse.dir", _wh("main"))
 
     # ── JARs ──────────────────────────────────────────────────────────────────
     if inside_docker:
@@ -150,20 +165,22 @@ def get_spark_session(app_name: str = "DatabricksLocal") -> SparkSession:
     else:
         try:
             from delta import configure_spark_with_delta_pip
+
             builder = configure_spark_with_delta_pip(builder)
         except ImportError:
             pass
 
     # ── Ajustes de rendimiento (replica defaults de Databricks Runtime) ───────
-    builder = builder \
-        .config("spark.sql.adaptive.enabled", "true") \
-        .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-        .config("spark.sql.adaptive.skewJoin.enabled", "true") \
-        .config("spark.sql.sources.partitionOverwriteMode", "dynamic") \
-        .config("spark.delta.schema.autoMerge.enabled", "true") \
-        .config("spark.sql.shuffle.partitions", "8") \
-        .config("spark.sql.parquet.compression.codec", "zstd") \
+    builder = (
+        builder.config("spark.sql.adaptive.enabled", "true")
+        .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+        .config("spark.sql.adaptive.skewJoin.enabled", "true")
+        .config("spark.sql.sources.partitionOverwriteMode", "dynamic")
+        .config("spark.delta.schema.autoMerge.enabled", "true")
+        .config("spark.sql.shuffle.partitions", "8")
+        .config("spark.sql.parquet.compression.codec", "zstd")
         .config("spark.sql.session.timeZone", "UTC")
+    )
 
     spark = builder.getOrCreate()
 
@@ -171,6 +188,7 @@ def get_spark_session(app_name: str = "DatabricksLocal") -> SparkSession:
     # Pasar el warehouse base S3 si estamos en modo Docker/MinIO,
     # para que el registro de catálogos refleje rutas S3 (no locales).
     from databricks_shim.unity_catalog import init_unity_catalog
+
     wh_s3_base = wh_base if "://" in wh_base else None
     init_unity_catalog(spark, warehouse_s3_base=wh_s3_base)
 

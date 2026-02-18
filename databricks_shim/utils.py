@@ -5,10 +5,10 @@ from collections import namedtuple
 # ---------------------------------------------------------------------------
 # Named tuples matching Databricks return types
 # ---------------------------------------------------------------------------
-FileInfo      = namedtuple("FileInfo",      ["path", "name", "size", "modificationTime"])
-MountInfo     = namedtuple("MountInfo",     ["mountPoint", "source", "encryptionType"])
+FileInfo = namedtuple("FileInfo", ["path", "name", "size", "modificationTime"])
+MountInfo = namedtuple("MountInfo", ["mountPoint", "source", "encryptionType"])
 SecretMetadata = namedtuple("SecretMetadata", ["key"])
-SecretScope   = namedtuple("SecretScope",   ["name"])
+SecretScope = namedtuple("SecretScope", ["name"])
 
 
 # ===========================================================================
@@ -70,16 +70,15 @@ class WidgetsMock:
     def text(self, name: str, defaultValue: str, label: str = None):
         self._widgets.setdefault(name, os.getenv(name, defaultValue))
 
-    def dropdown(self, name: str, defaultValue: str,
-                 choices: list, label: str = None):
+    def dropdown(self, name: str, defaultValue: str, choices: list, label: str = None):
         self._widgets.setdefault(name, os.getenv(name, defaultValue))
 
-    def combobox(self, name: str, defaultValue: str,
-                 choices: list, label: str = None):
+    def combobox(self, name: str, defaultValue: str, choices: list, label: str = None):
         self._widgets.setdefault(name, os.getenv(name, defaultValue))
 
-    def multiselect(self, name: str, defaultValue: str,
-                    choices: list, label: str = None):
+    def multiselect(
+        self, name: str, defaultValue: str, choices: list, label: str = None
+    ):
         self._widgets.setdefault(name, os.getenv(name, defaultValue))
 
     def get(self, name: str) -> str:
@@ -106,8 +105,10 @@ class WidgetsMock:
         self._widgets.clear()
 
     def help(self, method=None):
-        print("widgets: text, dropdown, combobox, multiselect, get, getAll, "
-              "getArgument, remove, removeAll")
+        print(
+            "widgets: text, dropdown, combobox, multiselect, get, getAll, "
+            "getArgument, remove, removeAll"
+        )
 
 
 # ===========================================================================
@@ -131,9 +132,12 @@ class FSMock:
     def _resolve(self, path: str) -> str:
         """Normaliza rutas /Volumes/ y dbfs:/ a rutas concretas."""
         from databricks_shim.unity_catalog import (
-            is_volume_path, is_dbfs_path,
-            resolve_volume_path, resolve_dbfs_path,
+            is_volume_path,
+            is_dbfs_path,
+            resolve_volume_path,
+            resolve_dbfs_path,
         )
+
         if is_volume_path(path):
             return resolve_volume_path(path)
         if is_dbfs_path(path):
@@ -147,12 +151,13 @@ class FSMock:
 
     def _hadoop_fs(self, path: str):
         from py4j.java_gateway import java_import
+
         jvm = self._spark._jvm
         java_import(jvm, "org.apache.hadoop.fs.Path")
         java_import(jvm, "org.apache.hadoop.fs.FileSystem")
         hpath = jvm.org.apache.hadoop.fs.Path(path)
-        conf  = self._spark._jsc.hadoopConfiguration()
-        fs    = jvm.org.apache.hadoop.fs.FileSystem.get(hpath.toUri(), conf)
+        conf = self._spark._jsc.hadoopConfiguration()
+        fs = jvm.org.apache.hadoop.fs.FileSystem.get(hpath.toUri(), conf)
         return fs, hpath
 
     # ── API pública ───────────────────────────────────────────────────────────
@@ -165,7 +170,6 @@ class FSMock:
             ls("/Volumes/main/bronze/raw/") →
                 FileInfo(path='/Volumes/main/bronze/raw/data.csv', ...)
         """
-        original_path = path.rstrip("/")
         resolved = self._resolve(path)
 
         if self._spark and self._is_remote(resolved):
@@ -173,22 +177,28 @@ class FSMock:
             statuses = fs.listStatus(hpath)
             results = []
             for st in statuses:
-                p    = st.getPath().toString()
+                p = st.getPath().toString()
                 name = st.getPath().getName()
                 if st.isDirectory():
                     name += "/"
-                results.append(FileInfo(
-                    path=p, name=name,
-                    size=st.getLen(),
-                    modificationTime=st.getModificationTime(),
-                ))
+                results.append(
+                    FileInfo(
+                        path=p,
+                        name=name,
+                        size=st.getLen(),
+                        modificationTime=st.getModificationTime(),
+                    )
+                )
             return results
 
         import pathlib as _pl
         from databricks_shim.unity_catalog import (
-            is_volume_path, is_dbfs_path,
-            _volumes_root, _dbfs_root,
+            is_volume_path,
+            is_dbfs_path,
+            _volumes_root,
+            _dbfs_root,
         )
+
         p = _pl.Path(resolved)
         if not p.exists():
             raise FileNotFoundError(f"Path does not exist: {path}")
@@ -211,12 +221,14 @@ class FSMock:
                 child_path = str(child)
             if is_dir and not child_path.endswith("/"):
                 child_path += "/"
-            results.append(FileInfo(
-                path=child_path,
-                name=child.name + ("/" if is_dir else ""),
-                size=child.stat().st_size if not is_dir else 0,
-                modificationTime=int(child.stat().st_mtime * 1000),
-            ))
+            results.append(
+                FileInfo(
+                    path=child_path,
+                    name=child.name + ("/" if is_dir else ""),
+                    size=child.stat().st_size if not is_dir else 0,
+                    modificationTime=int(child.stat().st_mtime * 1000),
+                )
+            )
         return results
 
     def head(self, path: str, max_bytes: int = 65536) -> str:
@@ -224,13 +236,14 @@ class FSMock:
         if self._spark and self._is_remote(path):
             fs, hpath = self._hadoop_fs(path)
             stream = fs.open(hpath)
-            buf  = bytearray(max_bytes)
+            buf = bytearray(max_bytes)
             from py4j.java_gateway import java_import
+
             java_import(self._spark._jvm, "java.io.BufferedInputStream")
-            bis    = self._spark._jvm.java.io.BufferedInputStream(stream)
+            bis = self._spark._jvm.java.io.BufferedInputStream(stream)
             n_read = bis.read(buf, 0, max_bytes)
             bis.close()
-            return bytes(buf[:max(n_read, 0)]).decode("utf-8", errors="replace")
+            return bytes(buf[: max(n_read, 0)]).decode("utf-8", errors="replace")
         with open(path, "rb") as f:
             return f.read(max_bytes).decode("utf-8", errors="replace")
 
@@ -239,14 +252,16 @@ class FSMock:
         dst = self._resolve(dst)
         if self._spark and (self._is_remote(src) or self._is_remote(dst)):
             fs_src, hp_src = self._hadoop_fs(src)
-            _, hp_dst      = self._hadoop_fs(dst)
+            _, hp_dst = self._hadoop_fs(dst)
             from py4j.java_gateway import java_import
+
             jvm = self._spark._jvm
             java_import(jvm, "org.apache.hadoop.fs.FileUtil")
-            conf   = self._spark._jsc.hadoopConfiguration()
+            conf = self._spark._jsc.hadoopConfiguration()
             fs_dst = jvm.org.apache.hadoop.fs.FileSystem.get(hp_dst.toUri(), conf)
             jvm.org.apache.hadoop.fs.FileUtil.copy(
-                fs_src, hp_src, fs_dst, hp_dst, False, conf)
+                fs_src, hp_src, fs_dst, hp_dst, False, conf
+            )
             return True
         if os.path.isdir(src) and recurse:
             shutil.copytree(src, dst, dirs_exist_ok=True)
@@ -291,7 +306,7 @@ class FSMock:
             if not overwrite and fs.exists(hpath):
                 raise FileExistsError(f"Path already exists: {path}")
             stream = fs.create(hpath, overwrite)
-            data   = contents.encode("utf-8")
+            data = contents.encode("utf-8")
             stream.write(bytearray(data))
             stream.close()
             return True
@@ -303,15 +318,25 @@ class FSMock:
 
     # ── Mounts (no-op — concepto DBFS/Databricks) ────────────────────────────
 
-    def mount(self, source: str, mountPoint: str,
-              encryptionType: str = "", owner=None,
-              extra_configs: dict = None) -> bool:
+    def mount(
+        self,
+        source: str,
+        mountPoint: str,
+        encryptionType: str = "",
+        owner=None,
+        extra_configs: dict = None,
+    ) -> bool:
         print(f"[Mock] mount {source} → {mountPoint} (no-op locally)")
         return True
 
-    def updateMount(self, source: str, mountPoint: str,
-                    encryptionType: str = "", owner=None,
-                    extra_configs: dict = None) -> bool:
+    def updateMount(
+        self,
+        source: str,
+        mountPoint: str,
+        encryptionType: str = "",
+        owner=None,
+        extra_configs: dict = None,
+    ) -> bool:
         print(f"[Mock] updateMount {source} → {mountPoint} (no-op locally)")
         return True
 
@@ -363,6 +388,7 @@ class CredentialsMock:
             Un dict con campos compatibles (access_token, expiry) vacíos.
         """
         import warnings
+
         warnings.warn(
             f"[DBUtils] getServiceCredentialsProvider('{credential_name}') — "
             "no-op local (Unity Catalog service credentials no disponibles en emulación)",
@@ -371,8 +397,10 @@ class CredentialsMock:
         return {"access_token": "", "expiry": None, "credential_name": credential_name}
 
     def help(self, method=None):
-        print("credentials: assumeRole, showCurrentRole, showRoles, "
-              "getServiceCredentialsProvider")
+        print(
+            "credentials: assumeRole, showCurrentRole, showRoles, "
+            "getServiceCredentialsProvider"
+        )
 
 
 # ===========================================================================
@@ -383,18 +411,18 @@ class NotebookContextMock:
 
     def __init__(self):
         self._tags = {
-            "orgId":         os.getenv("DATABRICKS_ORG_ID",      "0"),
-            "clusterId":     os.getenv("DATABRICKS_CLUSTER_ID",  "local-cluster"),
-            "clusterName":   os.getenv("DATABRICKS_CLUSTER_NAME","databricks-local"),
-            "notebookPath":  os.getenv("DATABRICKS_NOTEBOOK_PATH", "/local/notebook"),
-            "user":          os.getenv("DATABRICKS_USER",
-                                        os.getenv("USER", "local-user")),
-            "notebookId":    os.getenv("DATABRICKS_NOTEBOOK_ID", "0"),
-            "currentCatalog": os.getenv("DATABRICKS_CATALOG",   "main"),
+            "orgId": os.getenv("DATABRICKS_ORG_ID", "0"),
+            "clusterId": os.getenv("DATABRICKS_CLUSTER_ID", "local-cluster"),
+            "clusterName": os.getenv("DATABRICKS_CLUSTER_NAME", "databricks-local"),
+            "notebookPath": os.getenv("DATABRICKS_NOTEBOOK_PATH", "/local/notebook"),
+            "user": os.getenv("DATABRICKS_USER", os.getenv("USER", "local-user")),
+            "notebookId": os.getenv("DATABRICKS_NOTEBOOK_ID", "0"),
+            "currentCatalog": os.getenv("DATABRICKS_CATALOG", "main"),
         }
 
     def toJson(self) -> str:
         import json
+
         return json.dumps({"tags": self._tags})
 
     def tags(self) -> dict:
@@ -430,12 +458,11 @@ class NotebookMock:
     def __init__(self):
         self.entry_point = EntryPointRootMock()
 
-    def run(self, path: str, timeout_seconds: int = 0,
-            arguments: dict = None) -> str:
+    def run(self, path: str, timeout_seconds: int = 0, arguments: dict = None) -> str:
         import importlib.util
+
         print(f"[Mock] Running notebook: {path}")
-        abs_path = (path if os.path.isabs(path)
-                    else os.path.join(os.getcwd(), path))
+        abs_path = path if os.path.isabs(path) else os.path.join(os.getcwd(), path)
         if not abs_path.endswith(".py"):
             abs_path += ".py"
         if not os.path.exists(abs_path):
@@ -444,7 +471,7 @@ class NotebookMock:
             for k, v in arguments.items():
                 os.environ[k] = str(v)
         spec = importlib.util.spec_from_file_location("_notebook_run", abs_path)
-        mod  = importlib.util.module_from_spec(spec)
+        mod = importlib.util.module_from_spec(spec)
         try:
             spec.loader.exec_module(mod)
         except SystemExit as e:
@@ -470,8 +497,7 @@ class TaskValuesMock:
     def set(self, key: str, value) -> None:
         self._store[key] = value
 
-    def get(self, taskKey: str, key: str,
-            default=None, debugValue=None):
+    def get(self, taskKey: str, key: str, default=None, debugValue=None):
         compound = f"{taskKey}::{key}"
         if compound in self._store:
             return self._store[compound]
@@ -481,9 +507,7 @@ class TaskValuesMock:
             return debugValue
         if default is not None:
             return default
-        raise ValueError(
-            f"Task value '{key}' no encontrado para la tarea '{taskKey}'."
-        )
+        raise ValueError(f"Task value '{key}' no encontrado para la tarea '{taskKey}'.")
 
     def help(self, method=None):
         print("taskValues: get, set")
@@ -524,16 +548,18 @@ class DBUtilsShim:
 
     def __init__(self, spark=None):
         self.credentials = CredentialsMock()
-        self.data        = DataMock()
-        self.fs          = FSMock(spark=spark)
-        self.jobs        = JobsMock()
-        self.notebook    = NotebookMock()
-        self.secrets     = SecretsMock()
-        self.widgets     = WidgetsMock()
+        self.data = DataMock()
+        self.fs = FSMock(spark=spark)
+        self.jobs = JobsMock()
+        self.notebook = NotebookMock()
+        self.secrets = SecretsMock()
+        self.widgets = WidgetsMock()
 
     def help(self) -> None:
-        print("Available modules: credentials, data, fs, jobs, "
-              "notebook, secrets, widgets")
+        print(
+            "Available modules: credentials, data, fs, jobs, "
+            "notebook, secrets, widgets"
+        )
 
 
 # ===========================================================================
@@ -543,6 +569,7 @@ def get_dbutils(spark) -> DBUtilsShim:
     """Devuelve DBUtils — real en Databricks, shim localmente."""
     try:
         from pyspark.dbutils import DBUtils
+
         return DBUtils(spark)
     except ImportError:
         return DBUtilsShim(spark)
@@ -551,8 +578,9 @@ def get_dbutils(spark) -> DBUtilsShim:
 # ===========================================================================
 # display()  – función display compatible con Databricks
 # ===========================================================================
-def display(df_or_data=None, maxRows: int = 1000,
-            maxColumns: int = 20, truncate: bool = True) -> None:
+def display(
+    df_or_data=None, maxRows: int = 1000, maxColumns: int = 20, truncate: bool = True
+) -> None:
     """
     Emula la función display() de Databricks.
 
@@ -567,6 +595,7 @@ def display(df_or_data=None, maxRows: int = 1000,
     if hasattr(df_or_data, "toPandas"):
         try:
             from IPython.display import display as ipy_display
+
             pdf = df_or_data.limit(maxRows).toPandas()
             ipy_display(pdf)
         except ImportError:
@@ -577,6 +606,7 @@ def display(df_or_data=None, maxRows: int = 1000,
     if hasattr(df_or_data, "_repr_html_"):
         try:
             from IPython.display import display as ipy_display, HTML
+
             n = len(df_or_data)
             truncated = df_or_data.head(maxRows) if n > maxRows else df_or_data
             ipy_display(HTML(truncated._repr_html_()))
@@ -587,6 +617,7 @@ def display(df_or_data=None, maxRows: int = 1000,
     # Fallback genérico
     try:
         from IPython.display import display as ipy_display
+
         ipy_display(df_or_data)
     except ImportError:
         print(df_or_data)

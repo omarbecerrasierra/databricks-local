@@ -24,8 +24,8 @@ Uso directo de Unity Catalog::
     dbutils.fs.put("dbfs:/tmp/test.txt", "hello", True)
 """
 
-from databricks_shim.connect       import get_spark_session
-from databricks_shim.utils         import get_dbutils, display
+from databricks_shim.connect import get_spark_session
+from databricks_shim.utils import get_dbutils, display
 from databricks_shim.unity_catalog import UnityCatalogShim
 
 
@@ -44,19 +44,19 @@ def inject_notebook_context(app_name: str = "DatabricksLocal") -> None:
     """
     import inspect
 
-    spark   = get_spark_session(app_name)
+    spark = get_spark_session(app_name)
     dbutils = get_dbutils(spark)
-    sc      = spark.sparkContext
-    uc      = UnityCatalogShim(spark)
+    sc = spark.sparkContext
+    uc = UnityCatalogShim(spark)
 
     frame = inspect.currentframe()
     if frame and frame.f_back:
         globs = frame.f_back.f_globals
-        globs["spark"]   = spark
+        globs["spark"] = spark
         globs["dbutils"] = dbutils
         globs["display"] = display
-        globs["sc"]      = sc
-        globs["uc"]      = uc
+        globs["sc"] = sc
+        globs["uc"] = uc
 
 
 __all__ = [

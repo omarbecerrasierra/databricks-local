@@ -237,8 +237,8 @@ databricks_shim/
 ## Questions?
 
 Feel free to:
-- Open a [Discussion](https://github.com/yourusername/databricks-local/discussions)
-- Ask in an [Issue](https://github.com/yourusername/databricks-local/issues)
+- Open a [Discussion](https://github.com/omarbecerrasierra/databricks-local/discussions)
+- Ask in an [Issue](https://github.com/omarbecerrasierra/databricks-local/issues)
 - Reach out to maintainers
 
 ## License

@@ -5,7 +5,7 @@
 [![Delta Lake 3.3.2](https://img.shields.io/badge/delta-3.3.2-green.svg)](https://delta.io/)
 [![Tests](https://img.shields.io/badge/tests-253%20passed-brightgreen.svg)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/omarbecerrasierra/databricks-local?style=social)](https://github.com/omarbecerrasierra/databricks-local)
+[![GitHub stars](https://img.shields.io/github/stars/omarbecerrasierra/databricks-local.svg?style=social&label=Star)](https://github.com/omarbecerrasierra/databricks-local)
 
 > **⚠️ IMPORTANT DISCLAIMER**: This is an **unofficial, independent, open-source project** created for local development and testing. It is **NOT affiliated with, endorsed by, or supported by Databricks, Inc.** Databricks® is a registered trademark of Databricks, Inc. This project is provided "as-is" for educational and development purposes only. See [DISCLAIMER.md](DISCLAIMER.md) for complete legal information.
 

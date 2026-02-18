@@ -37,15 +37,21 @@ jobs:
 
     - name: Set up Hadoop winutils (Windows)
       if: runner.os == 'Windows'
-      shell: pwsh
+      shell: cmd
       run: |
-        $hadoopDir = "$env:RUNNER_TEMP\hadoop"
-        $binDir = "$hadoopDir\bin"
-        New-Item -ItemType Directory -Force -Path $binDir | Out-Null
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/cdarlint/winutils/master/hadoop-3.3.6/bin/winutils.exe" -OutFile "$binDir\winutils.exe"
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/cdarlint/winutils/master/hadoop-3.3.6/bin/hadoop.dll" -OutFile "$binDir\hadoop.dll"
-        echo "HADOOP_HOME=$hadoopDir" >> $env:GITHUB_ENV
-        echo "$binDir" >> $env:GITHUB_PATH
+        mkdir "%RUNNER_TEMP%\hadoop\bin"
+        curl -L -o "%RUNNER_TEMP%\hadoop\bin\winutils.exe" "https://github.com/cdarlint/winutils/raw/master/hadoop-3.3.5/bin/winutils.exe"
+        curl -L -o "%RUNNER_TEMP%\hadoop\bin\hadoop.dll" "https://github.com/cdarlint/winutils/raw/master/hadoop-3.3.5/bin/hadoop.dll"
+        if not exist "%RUNNER_TEMP%\hadoop\bin\winutils.exe" exit /b 1
+        echo HADOOP_HOME=%RUNNER_TEMP%\hadoop>> "%GITHUB_ENV%"
+        echo %RUNNER_TEMP%\hadoop\bin>> "%GITHUB_PATH%"
+
+    - name: Verify Hadoop home (Windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        echo HADOOP_HOME=%HADOOP_HOME%
+        dir "%HADOOP_HOME%\bin"
 
     - name: Cache pip packages
       uses: actions/cache@v4

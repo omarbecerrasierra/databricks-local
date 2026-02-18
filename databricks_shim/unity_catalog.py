@@ -87,9 +87,17 @@ _FUNCTION_REGISTRY: Dict[str, Dict] = {}  # "cat.sch.func" → {info}
 _GROUP_REGISTRY: Dict[str, List[str]] = {}  # group_name → [members]
 _DROPPED_TABLES: List[Dict] = []  # audit log de tablas eliminadas
 _LINEAGE_LOG: List[Dict] = []  # lineage tracking
+_SCHEMA_REGISTRY: Dict[str, set] = {}  # catalog_name → {schema_names}
 
 
 # ── Helpers de rutas ─────────────────────────────────────────────────────────
+
+_REMOTE_SCHEMES = ("s3://", "s3a://", "s3n://", "gs://", "abfss://", "abfs://", "wasbs://", "wasb://", "hdfs://")
+
+
+def _is_remote_path(path: str) -> bool:
+    """Devuelve True si *path* es una URI remota (S3, GCS, ABFS, …)."""
+    return any(path.startswith(s) for s in _REMOTE_SCHEMES)
 
 
 def _volumes_root() -> str:
@@ -106,7 +114,9 @@ def _warehouse_base() -> str:
 
 def _join(root: str, rel: str) -> str:
     """Une root y rel de forma segura (cross-platform)."""
-    return os.path.join(root, rel.lstrip("/\\"))
+    # Normalizar separadores para que funcione en Windows
+    rel_clean = rel.lstrip("/\\").replace("/", os.sep)
+    return os.path.join(root, rel_clean)
 
 
 def is_volume_path(path: str) -> bool:
@@ -1167,9 +1177,10 @@ class UnityCatalogShim:
 
         # MANAGED LOCATION: ruta personalizada o default warehouse
         wh = location or os.path.join(_warehouse_base(), name)
-        pathlib.Path(wh).mkdir(parents=True, exist_ok=True)
-        for sch in ("default", "bronze", "silver", "gold"):
-            pathlib.Path(os.path.join(wh, sch)).mkdir(parents=True, exist_ok=True)
+        if not _is_remote_path(wh):
+            pathlib.Path(wh).mkdir(parents=True, exist_ok=True)
+            for sch in ("default", "bronze", "silver", "gold"):
+                pathlib.Path(os.path.join(wh, sch)).mkdir(parents=True, exist_ok=True)
         self._catalogs[name] = wh
 
         # Registrar en la sesión Spark activa solo si el catálogo no es uno de
@@ -1267,10 +1278,14 @@ class UnityCatalogShim:
 
         if catalog_name == default_cat:
             # Sin prefijo de catálogo → usa el catálogo activo (main)
-            self._spark.sql(
-                f"CREATE DATABASE {ine} `{schema_name}` "
-                f"{comment_clause} {prop_clause}".strip()
-            )
+            try:
+                self._spark.sql(
+                    f"CREATE DATABASE {ine} `{schema_name}` "
+                    f"{comment_clause} {prop_clause}".strip()
+                )
+            except Exception:
+                # Fallback en memoria (e.g. Windows sin winutils)
+                pass
         else:
             # Intentar 3-level; si falla (catálogo custom sin DeltaCatalog),
             # registrar solo en el registro en memoria.
@@ -1282,6 +1297,10 @@ class UnityCatalogShim:
             except Exception:
                 # Catálogo custom gestionado solo por el shim
                 pass
+
+        # Registrar siempre en memoria para que list_schemas funcione
+        # incluso si Spark SQL falló (e.g. Windows sin winutils).
+        _SCHEMA_REGISTRY.setdefault(catalog_name, set()).add(schema_name)
 
     def drop_schema(
         self,
@@ -1298,7 +1317,10 @@ class UnityCatalogShim:
             default_cat = "main"
 
         if catalog_name == default_cat:
-            self._spark.sql(f"DROP DATABASE {ie} `{schema_name}` {casc}".strip())
+            try:
+                self._spark.sql(f"DROP DATABASE {ie} `{schema_name}` {casc}".strip())
+            except Exception:
+                pass
         else:
             try:
                 self._spark.sql(
@@ -1306,6 +1328,10 @@ class UnityCatalogShim:
                 )
             except Exception:
                 pass
+
+        # Eliminar del registro en memoria
+        if catalog_name in _SCHEMA_REGISTRY:
+            _SCHEMA_REGISTRY[catalog_name].discard(schema_name)
 
     def list_schemas(self, catalog_name: Optional[str] = None) -> List[SchemaInfo]:
         cat = catalog_name or _CURRENT_CATALOG
@@ -1319,9 +1345,14 @@ class UnityCatalogShim:
                 rows = self._spark.sql("SHOW SCHEMAS").collect()
             else:
                 rows = self._spark.sql(f"SHOW SCHEMAS IN `{cat}`").collect()
-            return [SchemaInfo(catalog_name=cat, name=r[0], comment="") for r in rows]
+            spark_schemas = {r[0] for r in rows}
         except Exception:
-            return []
+            spark_schemas = set()
+
+        # Fusionar con el registro en memoria
+        mem_schemas = _SCHEMA_REGISTRY.get(cat, set())
+        all_schemas = spark_schemas | mem_schemas
+        return [SchemaInfo(catalog_name=cat, name=n, comment="") for n in sorted(all_schemas)]
 
     def describe_schema(self, catalog_name: str, schema_name: str):
         """Describe un schema, devuelve DataFrame con la información."""
@@ -1418,7 +1449,8 @@ class UnityCatalogShim:
             _volumes_root(),
             os.path.join(catalog_name, schema_name, volume_name),
         )
-        pathlib.Path(local_path).mkdir(parents=True, exist_ok=True)
+        if not _is_remote_path(local_path):
+            pathlib.Path(local_path).mkdir(parents=True, exist_ok=True)
         self._volumes[key] = local_path
         print(f"[Unity] Volume '{key}' ({volume_type}) → {local_path}")
         return None
@@ -2138,8 +2170,12 @@ def init_unity_catalog(spark) -> None:
         _CATALOG_REGISTRY[cat] = cat_path
 
     # Directorios locales para volumes y DBFS
-    pathlib.Path(_volumes_root()).mkdir(parents=True, exist_ok=True)
-    pathlib.Path(_dbfs_root()).mkdir(parents=True, exist_ok=True)
+    vr = _volumes_root()
+    dr = _dbfs_root()
+    if not _is_remote_path(vr):
+        pathlib.Path(vr).mkdir(parents=True, exist_ok=True)
+    if not _is_remote_path(dr):
+        pathlib.Path(dr).mkdir(parents=True, exist_ok=True)
 
     _CURRENT_CATALOG = "main"
 

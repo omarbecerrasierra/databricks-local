@@ -1,17 +1,25 @@
 import os
+import sys
 import pytest
 from pathlib import Path
-
-os.environ.setdefault("APP_ENV", "local")
 
 from pyspark.sql import SparkSession
 from delta import configure_spark_with_delta_pip
 
-from main import (
+os.environ.setdefault("APP_ENV", "local")
+
+from main import (  # noqa: E402
     ingest_bronze,
     process_silver,
     aggregate_gold,
     simulate_append,
+)
+
+# Delta Lake writes require native Hadoop (winutils.exe) on Windows,
+# which has VC++ runtime issues in CI. Core UC tests cover Windows.
+skip_windows = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Delta Lake write ops need native Hadoop binaries on Windows",
 )
 
 
@@ -56,6 +64,7 @@ def _gold(tmp_path):
     return Path(tmp_path / "gold").as_uri()
 
 
+@skip_windows
 def test_bronze_ingestion(spark, tmp_path):
     bronze = _bronze(tmp_path)
     ingest_bronze(spark, bronze)
@@ -64,6 +73,7 @@ def test_bronze_ingestion(spark, tmp_path):
     assert set(df.columns) == {"id", "name", "price", "category"}
 
 
+@skip_windows
 def test_silver_processing(spark, tmp_path):
     bronze, silver = _bronze(tmp_path), _silver(tmp_path)
     ingest_bronze(spark, bronze)
@@ -75,6 +85,7 @@ def test_silver_processing(spark, tmp_path):
     assert df.filter(df.id == 1).first()["name_upper"] == "PRODUCT A"
 
 
+@skip_windows
 def test_gold_aggregation(spark, tmp_path):
     bronze, silver, gold = _bronze(tmp_path), _silver(tmp_path), _gold(tmp_path)
     ingest_bronze(spark, bronze)
@@ -86,6 +97,7 @@ def test_gold_aggregation(spark, tmp_path):
     assert "product_count" in df.columns
 
 
+@skip_windows
 def test_append_time_travel(spark, tmp_path):
     bronze = _bronze(tmp_path)
     ingest_bronze(spark, bronze)

@@ -25,7 +25,6 @@ from delta.tables import DeltaTable
 
 from databricks_shim import get_spark_session
 
-
 # ── Schema & sample data ─────────────────────────────────────────────────
 SCHEMA = StructType(
     [

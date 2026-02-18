@@ -1050,12 +1050,10 @@ class TestDataMock:
 
         dm = DataMock()
         spark.sql("CREATE DATABASE IF NOT EXISTS `main`.`dm_test`")
-        spark.sql(
-            """
+        spark.sql("""
             CREATE TABLE IF NOT EXISTS `main`.`dm_test`.`dm_tbl`
             (id INT, val DOUBLE) USING DELTA
-        """
-        )
+        """)
         spark.sql("INSERT INTO `main`.`dm_test`.`dm_tbl` VALUES (1, 1.5), (2, 2.5)")
         df = spark.sql("SELECT * FROM `main`.`dm_test`.`dm_tbl`")
         dm.summarize(df)  # debe ejecutar sin error
@@ -1115,13 +1113,11 @@ class TestThreeLevelNamespace:
     def test_create_table_and_query(self, spark, uc):
         """Crea tabla en main.ns_default y la consulta."""
         spark.sql("CREATE DATABASE IF NOT EXISTS `main`.`ns_default`")
-        spark.sql(
-            """
+        spark.sql("""
             CREATE TABLE IF NOT EXISTS `main`.`ns_default`.`test_tbl`
             (id INT, val STRING)
             USING DELTA
-        """
-        )
+        """)
         spark.sql(
             "INSERT INTO `main`.`ns_default`.`test_tbl` VALUES (1, 'a'), (2, 'b')"
         )
@@ -1135,12 +1131,10 @@ class TestThreeLevelNamespace:
     )
     def test_list_tables(self, spark, uc):
         spark.sql("CREATE DATABASE IF NOT EXISTS `main`.`ns_list_test`")
-        spark.sql(
-            """
+        spark.sql("""
             CREATE TABLE IF NOT EXISTS `main`.`ns_list_test`.`ns_tbl`
             (x INT) USING DELTA
-        """
-        )
+        """)
         tables = uc.list_tables("main", "ns_list_test")
         names = [t.name for t in tables]
         assert "ns_tbl" in names

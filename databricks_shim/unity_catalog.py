@@ -49,7 +49,6 @@ import datetime
 from collections import namedtuple
 from typing import Dict, List, Optional
 
-
 # ── Named tuples que replican los tipos de retorno de Databricks ─────────────
 
 CatalogInfo = namedtuple("CatalogInfo", ["name", "comment"])
@@ -1901,8 +1900,7 @@ class UnityCatalogShim:
     # ── Utilidades ────────────────────────────────────────────────────────────
 
     def help(self) -> None:
-        print(
-            """
+        print("""
 Unity Catalog Shim — métodos disponibles   (docs.databricks.com Feb 2026)
 ──────────────────────────────────────────────────────────────────────────
 SQL interceptado (no soportado nativamente por Spark):
@@ -2008,8 +2006,7 @@ Rutas especiales (via dbutils.fs):
   /Volumes/catalog/schema/volume/path  →  <VOLUMES_ROOT>/…
   dbfs:/path                           →  <DBFS_ROOT>/…
   s3a://bucket/…                       →  Hadoop FileSystem (MinIO/S3)
-"""
-        )
+""")
 
 
 # ── information_schema simulado ───────────────────────────────────────────────

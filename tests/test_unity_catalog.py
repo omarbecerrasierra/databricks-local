@@ -700,20 +700,20 @@ class TestPathHelpers:
 
         resolved = resolve_volume_path("/Volumes/main/bronze/raw/data.csv")
         assert resolved.startswith(uc_env["volumes"])
-        assert resolved.endswith("main/bronze/raw/data.csv")
+        assert resolved.endswith(os.path.join("main", "bronze", "raw", "data.csv"))
 
     def test_resolve_dbfs_path(self, uc_env):
         from databricks_shim.unity_catalog import resolve_dbfs_path
 
         resolved = resolve_dbfs_path("dbfs:/tmp/hello.txt")
         assert resolved.startswith(uc_env["dbfs"])
-        assert resolved.endswith("tmp/hello.txt")
+        assert resolved.endswith(os.path.join("tmp", "hello.txt"))
 
     def test_resolve_dbfs_double_slash(self, uc_env):
         from databricks_shim.unity_catalog import resolve_dbfs_path
 
         resolved = resolve_dbfs_path("dbfs://tmp/hello.txt")
-        assert "tmp/hello.txt" in resolved
+        assert os.path.join("tmp", "hello.txt") in resolved
 
 
 # ===========================================================================
@@ -1109,9 +1109,7 @@ class TestThreeLevelNamespace:
             (id INT, val STRING)
             USING DELTA
         """)
-        spark.sql(
-            "INSERT INTO ns_default.test_tbl VALUES (1, 'a'), (2, 'b')"
-        )
+        spark.sql("INSERT INTO ns_default.test_tbl VALUES (1, 'a'), (2, 'b')")
         df = spark.sql("SELECT * FROM ns_default.test_tbl")
         assert df.count() == 2
         spark.sql("DROP TABLE IF EXISTS ns_default.test_tbl")

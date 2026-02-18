@@ -19,7 +19,9 @@ def get_spark_session(app_name: str = "DatabricksLocal") -> SparkSession:
       - Catálogo ``main``            → DeltaCatalog primario
       - Catálogo ``hive_metastore``  → DeltaCatalog de legado (2 niveles)
     """
-    print("⚡ Initializing Local Spark — PySpark 3.5.3 + Delta Lake 3.3.2 + Unity Catalog Emulator")
+    print(
+        "⚡ Initializing Local Spark — PySpark 3.5.3 + Delta Lake 3.3.2 + Unity Catalog Emulator"
+    )
 
     # ── Builder base con extensiones Delta ───────────────────────────────────
     builder = (
@@ -48,9 +50,7 @@ def get_spark_session(app_name: str = "DatabricksLocal") -> SparkSession:
     # que Spark inicializa correctamente con su delegate = Hive/InMemory).
     # El catálogo 'main' del UC shim es VIRTUAL: el shim intercepta SQL de
     # tres niveles y lo enruta al 'spark_catalog'.
-    builder = builder.config(
-        "spark.sql.warehouse.dir", os.path.join(wh_base, "main")
-    )
+    builder = builder.config("spark.sql.warehouse.dir", os.path.join(wh_base, "main"))
 
     # ── Delta JARs via pip ───────────────────────────────────────────────────
     try:

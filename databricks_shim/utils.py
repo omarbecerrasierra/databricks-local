@@ -172,12 +172,12 @@ class FSMock:
             is_dir = child.is_dir()
             # Reconstruir la ruta en formato UC si el path original era UC
             if is_volume_path(path):
-                vr = _volumes_root().rstrip("/")
-                rel = str(child).replace(vr, "", 1).lstrip("/")
+                vr = _volumes_root()
+                rel = _pl.Path(child).relative_to(vr).as_posix()
                 child_path = "/Volumes/" + rel
             elif is_dbfs_path(path):
-                dr = _dbfs_root().rstrip("/")
-                rel = str(child).replace(dr, "", 1).lstrip("/")
+                dr = _dbfs_root()
+                rel = _pl.Path(child).relative_to(dr).as_posix()
                 child_path = "dbfs:/" + rel
             else:
                 child_path = str(child)
@@ -336,7 +336,10 @@ class NotebookContextMock:
             "clusterId": os.getenv("DATABRICKS_CLUSTER_ID", "local-cluster"),
             "clusterName": os.getenv("DATABRICKS_CLUSTER_NAME", "databricks-local"),
             "notebookPath": os.getenv("DATABRICKS_NOTEBOOK_PATH", "/local/notebook"),
-            "user": os.getenv("DATABRICKS_USER", os.getenv("USER", "local-user")),
+            "user": os.getenv(
+                "DATABRICKS_USER",
+                os.getenv("USER", os.getenv("USERNAME", "local-user")),
+            ),
             "notebookId": os.getenv("DATABRICKS_NOTEBOOK_ID", "0"),
             "currentCatalog": os.getenv("DATABRICKS_CATALOG", "main"),
         }

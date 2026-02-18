@@ -147,7 +147,9 @@ def _delete_path_if_exists(spark, path: str) -> None:
 def run():
     spark = get_spark_session("Medallion_ETL")
 
-    base_dir = os.getenv("WAREHOUSE_DIR", os.path.join(os.getcwd(), ".warehouse", "demo"))
+    base_dir = os.getenv(
+        "WAREHOUSE_DIR", os.path.join(os.getcwd(), ".warehouse", "demo")
+    )
     os.makedirs(base_dir, exist_ok=True)
     bronze, silver, gold = paths(base_dir)
 

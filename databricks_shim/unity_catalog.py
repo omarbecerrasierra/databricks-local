@@ -105,8 +105,8 @@ def _warehouse_base() -> str:
 
 
 def _join(root: str, rel: str) -> str:
-    """Une root y rel de forma segura."""
-    return os.path.join(root, rel.lstrip("/"))
+    """Une root y rel de forma segura (cross-platform)."""
+    return os.path.join(root, rel.lstrip("/\\"))
 
 
 def is_volume_path(path: str) -> bool:
@@ -1083,7 +1083,10 @@ class UnityCatalogShim:
 
         m = _PAT_SHOW_USERS.match(q)
         if m:
-            user = os.getenv("DATABRICKS_USER", os.getenv("USER", "local-user"))
+            user = os.getenv(
+                "DATABRICKS_USER",
+                os.getenv("USER", os.getenv("USERNAME", "local-user")),
+            )
             return self._spark.createDataFrame([(user,)], "name STRING")
 
         # ── ALTER VOLUME ─────────────────────────────────────────────────────
@@ -1413,7 +1416,7 @@ class UnityCatalogShim:
 
         local_path = location or _join(
             _volumes_root(),
-            f"{catalog_name}/{schema_name}/{volume_name}",
+            os.path.join(catalog_name, schema_name, volume_name),
         )
         pathlib.Path(local_path).mkdir(parents=True, exist_ok=True)
         self._volumes[key] = local_path
@@ -1491,7 +1494,7 @@ class UnityCatalogShim:
 
         Equivale a ``/Volumes/catalog/schema/volume/subpath`` resuelto a local.
         """
-        base = f"/Volumes/{catalog_name}/{schema_name}/{volume_name}"
+        base = "/Volumes/" + "/".join([catalog_name, schema_name, volume_name])
         if subpath:
             base = base + "/" + "/".join(subpath)
         return resolve_volume_path(base)

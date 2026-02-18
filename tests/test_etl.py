@@ -29,7 +29,7 @@ def spark(tmp_path_factory):
             "spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
         )
-        .config("spark.sql.warehouse.dir", f"{wh}/main")
+        .config("spark.sql.warehouse.dir", os.path.join(wh, "main"))
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.default.parallelism", "2")
         .config("spark.ui.enabled", "false")

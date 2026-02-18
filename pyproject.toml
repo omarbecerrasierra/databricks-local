@@ -43,8 +43,8 @@ Changelog = "https://github.com/omarbecerrasierra/databricks-local/blob/main/CHA
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "black>=26.1.0",
-    "ruff>=0.15.0",
+    "black==26.1.0",
+    "ruff==0.15.1",
 ]
 
 [tool.setuptools.packages.find]

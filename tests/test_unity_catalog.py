@@ -35,7 +35,7 @@ def spark():
     import platform
 
     wh = tempfile.mkdtemp(prefix="uc_test_wh_")
-    
+
     # Normalize path for Windows
     wh_config = wh.replace("\\", "/") if platform.system() == "Windows" else wh
 

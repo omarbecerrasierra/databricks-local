@@ -36,12 +36,13 @@ def spark(tmp_path_factory):
             "spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false"
         )
     )
-    
+
     # Windows-specific configuration to suppress Hadoop native library warnings
     import platform
+
     if platform.system() == "Windows":
         builder = builder.config("spark.sql.warehouse.dir", wh.replace("\\", "/"))
-    
+
     builder = configure_spark_with_delta_pip(builder)
     session = builder.getOrCreate()
     yield session

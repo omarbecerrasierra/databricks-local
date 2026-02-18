@@ -1,5 +1,6 @@
 import os
 import pytest
+from pathlib import Path
 from unittest.mock import MagicMock
 
 os.environ.setdefault("APP_ENV", "local")
@@ -38,15 +39,15 @@ def spark(tmp_path_factory):
 
 
 def _bronze(tmp_path):
-    return f"file://{tmp_path}/bronze"
+    return Path(tmp_path / "bronze").as_uri()
 
 
 def _silver(tmp_path):
-    return f"file://{tmp_path}/silver"
+    return Path(tmp_path / "silver").as_uri()
 
 
 def _gold(tmp_path):
-    return f"file://{tmp_path}/gold"
+    return Path(tmp_path / "gold").as_uri()
 
 
 def test_bronze_ingestion(spark, tmp_path):

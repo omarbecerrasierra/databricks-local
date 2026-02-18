@@ -3,14 +3,23 @@ Medallion ETL demo — runs inside the Docker Databricks emulator.
 
     docker compose exec spark python main.py
 """
+
 import os
 
 from pyspark.sql.functions import (
-    avg, col, count, current_timestamp, upper,
+    avg,
+    col,
+    count,
+    current_timestamp,
+    upper,
     round as spark_round,
 )
 from pyspark.sql.types import (
-    DoubleType, IntegerType, StringType, StructField, StructType,
+    DoubleType,
+    IntegerType,
+    StringType,
+    StructField,
+    StructType,
 )
 from delta.tables import DeltaTable
 
@@ -18,18 +27,20 @@ from databricks_shim import get_spark_session
 
 
 # ── Schema & sample data ─────────────────────────────────────────────────
-SCHEMA = StructType([
-    StructField("id", IntegerType()),
-    StructField("name", StringType()),
-    StructField("price", DoubleType()),
-    StructField("category", StringType()),
-])
+SCHEMA = StructType(
+    [
+        StructField("id", IntegerType()),
+        StructField("name", StringType()),
+        StructField("price", DoubleType()),
+        StructField("category", StringType()),
+    ]
+)
 
 PRODUCTS = [
     (1, "Product A", 100.0, "electronics"),
     (2, "Product B", 200.0, "electronics"),
-    (3, "Product C",  50.0, "clothing"),
-    (4, "Product D",  75.0, "clothing"),
+    (3, "Product C", 50.0, "clothing"),
+    (4, "Product D", 75.0, "clothing"),
     (5, "Product E", 300.0, "home"),
 ]
 
@@ -46,41 +57,49 @@ def paths(bucket, prefix):
 # ── ETL steps ─────────────────────────────────────────────────────────────
 def ingest_bronze(spark, bronze):
     print("Bronze  ▸ raw ingestion")
-    spark.createDataFrame(PRODUCTS, SCHEMA) \
-        .write.format("delta").mode("overwrite").save(bronze)
+    spark.createDataFrame(PRODUCTS, SCHEMA).write.format("delta").mode(
+        "overwrite"
+    ).save(bronze)
 
 
 def process_silver(spark, bronze, silver):
     print("Silver  ▸ cleansed + enriched")
-    df = spark.read.format("delta").load(bronze) \
-        .withColumn("ingestion_time", current_timestamp()) \
+    df = (
+        spark.read.format("delta")
+        .load(bronze)
+        .withColumn("ingestion_time", current_timestamp())
         .withColumn("name_upper", upper(col("name")))
+    )
     spark.sql("CREATE DATABASE IF NOT EXISTS sales")
     # Write to path first, then create table pointing to it
-    df.write.format("delta").mode("overwrite") \
-        .option("overwriteSchema", "true") \
-        .save(silver)
-    spark.sql(f"CREATE TABLE IF NOT EXISTS sales.products_silver USING DELTA LOCATION '{silver}'")
+    df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(
+        silver
+    )
+    spark.sql(
+        f"CREATE TABLE IF NOT EXISTS sales.products_silver USING DELTA LOCATION '{silver}'"
+    )
 
 
 def aggregate_gold(spark, silver, gold):
     print("Gold    ▸ business aggregates")
-    df = spark.read.format("delta").load(silver) \
-        .groupBy("category") \
-        .agg(avg("price").alias("avg_price"),
-             count("id").alias("product_count")) \
+    df = (
+        spark.read.format("delta")
+        .load(silver)
+        .groupBy("category")
+        .agg(avg("price").alias("avg_price"), count("id").alias("product_count"))
         .withColumn("avg_price", spark_round(col("avg_price"), 2))
+    )
     # Write to path first, then create table pointing to it
     df.write.format("delta").mode("overwrite").save(gold)
-    spark.sql(f"CREATE TABLE IF NOT EXISTS sales.category_summary_gold USING DELTA LOCATION '{gold}'")
+    spark.sql(
+        f"CREATE TABLE IF NOT EXISTS sales.category_summary_gold USING DELTA LOCATION '{gold}'"
+    )
 
 
 def simulate_append(spark, bronze):
     print("Append  ▸ new rows to Bronze (time-travel demo)")
-    new = [(6, "Product F", 150.0, "home"),
-           (7, "Product G", 400.0, "electronics")]
-    spark.createDataFrame(new, SCHEMA) \
-        .write.format("delta").mode("append").save(bronze)
+    new = [(6, "Product F", 150.0, "home"), (7, "Product G", 400.0, "electronics")]
+    spark.createDataFrame(new, SCHEMA).write.format("delta").mode("append").save(bronze)
 
 
 def merge_into_silver(spark, silver):
@@ -89,9 +108,11 @@ def merge_into_silver(spark, silver):
         (1, "Product A Premium", 120.0, "electronics"),
         (8, "Product H", 90.0, "clothing"),
     ]
-    src = spark.createDataFrame(updates, SCHEMA) \
-        .withColumn("ingestion_time", current_timestamp()) \
+    src = (
+        spark.createDataFrame(updates, SCHEMA)
+        .withColumn("ingestion_time", current_timestamp())
         .withColumn("name_upper", upper(col("name")))
+    )
     DeltaTable.forPath(spark, silver).alias("t").merge(
         src.alias("s"), "t.id = s.id"
     ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
@@ -101,8 +122,7 @@ def optimize_vacuum(spark, silver):
     print("Maint   ▸ OPTIMIZE Silver")
     spark.sql(f"OPTIMIZE delta.`{silver}`")
     print("Maint   ▸ VACUUM Silver (RETAIN 0 HOURS)")
-    spark.conf.set("spark.databricks.delta.retentionDurationCheck.enabled",
-                   "false")
+    spark.conf.set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
     spark.sql(f"VACUUM delta.`{silver}` RETAIN 0 HOURS")
     print("Maint   ▸ VACUUM complete")
 
